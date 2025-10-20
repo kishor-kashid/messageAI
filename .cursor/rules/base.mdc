@@ -1,0 +1,223 @@
+Description: Core MessageAI project rules and patterns
+Globs: **/*.js, **/*.jsx
+
+# MessageAI MVP - Core Project Rules
+
+## Project Context
+- **Timeline:** 24 hours hard deadline (Tuesday)
+- **Language:** JavaScript (NOT TypeScript) - faster iteration
+- **Platform:** React Native + Expo (managed workflow)
+- **Backend:** Firebase (Firestore, Auth, Storage, FCM)
+- **Focus:** Messaging reliability FIRST, features second
+
+## Critical Principles
+
+### 1. Offline-First Architecture
+- Always save to local SQLite FIRST
+- Sync to Firebase as secondary operation
+- Never block UI on network operations
+- Queue messages when offline, auto-sync when online
+
+### 2. Optimistic UI Updates
+- Update UI immediately before server confirmation
+- Show status: sending → sent → delivered → read
+- Rollback or retry on failure
+- Users should never wait for network
+
+### 3. Memory Management
+- ALWAYS unsubscribe from Firebase listeners in cleanup functions
+- Use `useEffect` return function for cleanup
+- Example:
+```javascript
+useEffect(() => {
+  const unsubscribe = onSnapshot(query, callback);
+  return () => unsubscribe(); // CRITICAL
+}, [deps]);
+```
+
+### 4. Error Handling
+- Wrap ALL Firebase operations in try-catch
+- Show user-friendly error messages
+- Log errors for debugging
+- Never expose technical errors to users
+
+## Code Patterns
+
+### File Organization
+```
+app/          → Expo Router screens
+components/   → Reusable UI components
+lib/
+  firebase/   → All Firebase operations
+  database/   → All SQLite operations
+  hooks/      → Custom React hooks
+  context/    → Context providers
+  sync/       → Offline sync logic
+  utils/      → Utility functions
+```
+
+### Custom Hooks Pattern
+```javascript
+// Always follow this structure
+export function useMessages(conversationId) {
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    // Setup
+    const unsubscribe = setupListener();
+    return () => unsubscribe(); // Cleanup
+  }, [conversationId]);
+  
+  return { messages, loading, sendMessage };
+}
+```
+
+### Firebase Operations
+- Keep ALL Firestore operations in `lib/firebase/firestore.js`
+- Keep ALL Auth operations in `lib/firebase/auth.js`
+- Keep ALL Storage operations in `lib/firebase/storage.js`
+- Never call Firebase directly from components
+
+### Local Database Operations
+- Keep ALL SQLite operations in `lib/database/*.js`
+- Never call SQLite directly from components
+- Use hooks to bridge database and UI
+
+## Testing Requirements
+
+### Must Write Tests For:
+- ✅ Authentication functions (unit)
+- ✅ Validation logic (unit)
+- ✅ Formatters (unit)
+- ✅ Offline queue (unit)
+- ✅ Message sync (unit)
+- ✅ Database CRUD (integration)
+- ✅ Contact management (integration)
+- ✅ Messaging flow (integration)
+- ✅ Presence updates (integration)
+
+### Test Naming Convention
+```javascript
+describe('functionName', () => {
+  it('should do X when Y happens', () => {
+    // Arrange
+    // Act
+    // Assert
+  });
+});
+```
+
+### Mock Firebase in Tests
+```javascript
+jest.mock('firebase/firestore', () => ({
+  collection: jest.fn(),
+  addDoc: jest.fn(),
+  // ... mock all Firebase methods
+}));
+```
+
+## Performance Rules
+
+### React Performance
+- Use `React.memo` for MessageBubble components
+- Use `useMemo` for expensive calculations
+- Use `useCallback` for function props
+- Use `keyExtractor` in FlatLists properly
+
+### Firebase Performance
+- Use `.limit()` on all queries
+- Use `.where()` to filter server-side
+- Minimize reads (they cost money)
+- Cache aggressively in SQLite
+
+## Naming Conventions
+
+### Files
+- Screens: lowercase, e.g., `login.jsx`, `chat/[id].jsx`
+- Components: PascalCase, e.g., `MessageBubble.jsx`
+- Hooks: camelCase starting with `use`, e.g., `useMessages.js`
+- Utilities: camelCase, e.g., `validation.js`
+
+### Functions
+- Event handlers: `handleX`, e.g., `handleSend`, `handlePress`
+- Async operations: descriptive verbs, e.g., `sendMessage`, `fetchContacts`
+- Boolean variables: `isX` or `hasX`, e.g., `isLoading`, `hasUnread`
+
+## Common Pitfalls to Avoid
+
+### 1. Firebase Listener Leaks
+❌ BAD:
+```javascript
+useEffect(() => {
+  onSnapshot(query, callback);
+}, []);
+```
+
+✅ GOOD:
+```javascript
+useEffect(() => {
+  const unsubscribe = onSnapshot(query, callback);
+  return () => unsubscribe();
+}, []);
+```
+
+### 2. Direct Firebase Calls in Components
+❌ BAD:
+```javascript
+// In component
+await addDoc(collection(db, 'messages'), messageData);
+```
+
+✅ GOOD:
+```javascript
+// In component
+const { sendMessage } = useMessages(conversationId);
+await sendMessage(text);
+
+// In hook
+export function useMessages(conversationId) {
+  const sendMessage = async (text) => {
+    await sendMessageToFirestore(conversationId, text);
+  };
+  return { sendMessage };
+}
+```
+
+### 3. Forgetting Offline Mode
+❌ BAD:
+```javascript
+await sendToFirebase(message); // Fails when offline
+```
+
+✅ GOOD:
+```javascript
+await saveToSQLite(message); // Always succeeds
+if (isOnline) {
+  await sendToFirebase(message);
+} else {
+  await addToQueue(message);
+}
+```
+
+## Priority Reminders
+
+### If Running Out of Time
+1. Complete PRs #1-3, #6 (Setup, Auth, Database, Messaging) - CRITICAL
+2. Complete PR #11 (Offline Sync) - HIGH
+3. Skip media, notifications, polish if needed
+4. Tests for critical path only
+
+### Never Skip
+- Authentication
+- Message sending/receiving
+- Local persistence
+- Offline queue
+- Basic tests for critical path
+
+## Success Criteria Checklist
+- [ ] Two devices can chat in real-time
+- [ ] Messages persist through app restart
+- [ ] Offline messages sync when reconnected
+- [ ] No critical bugs in message delivery
+- [ ] >70% test coverage on critical path

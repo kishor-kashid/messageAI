@@ -137,3 +137,47 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# React Native / Expo
+.expo/
+.expo-shared/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+dist/
+
+# Firebase
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+firebase.config.js
+google-services.json
+GoogleService-Info.plist
+
+# SQLite databases
+*.db
+*.db-shm
+*.db-wal
+
+# MacOS
+.DS_Store
+
+# Android
+*.apk
+*.aab
+android/app/build/
+android/.gradle/
+
+# iOS
+ios/Pods/
+ios/build/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Testing
+__tests__/coverage/

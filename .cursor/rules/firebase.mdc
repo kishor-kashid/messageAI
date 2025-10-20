@@ -1,0 +1,507 @@
+Description: Firebase-specific patterns and best practices for MessageAI
+Globs: **/lib/firebase/**/*.js
+
+# Firebase Rules - MessageAI MVP
+
+## Firebase Architecture
+
+### Collections Structure
+```
+/users/{userId}
+  - id: string
+  - email: string
+  - displayName: string
+  - profilePicture: string
+  - isOnline: boolean
+  - lastSeen: timestamp
+  - pushToken: string
+  - createdAt: timestamp
+
+/conversations/{conversationId}
+  - id: string
+  - type: 'direct' | 'group'
+  - participants: [userId, ...]
+  - lastMessage: string
+  - lastMessageTime: timestamp
+  - createdAt: timestamp
+
+/conversations/{conversationId}/messages/{messageId}
+  - id: string
+  - senderId: string
+  - text: string
+  - imageUrl: string (optional)
+  - timestamp: timestamp
+  - status: string
+  - readBy: [userId, ...]
+
+/presence/{userId}
+  - isOnline: boolean
+  - lastSeen: timestamp
+  - updatedAt: timestamp
+```
+
+## Critical Firebase Patterns
+
+### 1. Always Unsubscribe from Listeners
+```javascript
+// ALWAYS follow this pattern
+export function listenToMessages(conversationId, callback) {
+  const messagesRef = collection(db, `conversations/${conversationId}/messages`);
+  const q = query(messagesRef, orderBy('timestamp', 'desc'));
+  
+  // onSnapshot returns an unsubscribe function
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    const messages = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    callback(messages);
+  });
+  
+  // Return the unsubscribe function
+  return unsubscribe;
+}
+
+// Usage in hook
+useEffect(() => {
+  const unsubscribe = listenToMessages(conversationId, setMessages);
+  return () => unsubscribe(); // CRITICAL - prevents memory leak
+}, [conversationId]);
+```
+
+### 2. Use Batched Writes for Related Updates
+```javascript
+import { writeBatch, doc } from 'firebase/firestore';
+
+// GOOD - Atomic batch write
+export async function sendMessage(conversationId, message) {
+  const batch = writeBatch(db);
+  
+  // Add message
+  const messageRef = doc(collection(db, `conversations/${conversationId}/messages`));
+  batch.set(messageRef, message);
+  
+  // Update conversation last message
+  const conversationRef = doc(db, 'conversations', conversationId);
+  batch.update(conversationRef, {
+    lastMessage: message.text,
+    lastMessageTime: message.timestamp
+  });
+  
+  // Commit all at once
+  await batch.commit();
+}
+```
+
+### 3. Minimize Reads with Proper Queries
+```javascript
+// BAD - No limit, reads everything
+const q = query(collection(db, 'messages'));
+
+// GOOD - Limited query
+const q = query(
+  collection(db, 'messages'),
+  where('conversationId', '==', convId),
+  orderBy('timestamp', 'desc'),
+  limit(50) // Only read 50 most recent
+);
+```
+
+### 4. Handle Offline State Properly
+```javascript
+import { enableIndexedDbPersistence } from 'firebase/firestore';
+
+// Enable offline persistence
+try {
+  await enableIndexedDbPersistence(db);
+} catch (err) {
+  if (err.code === 'failed-precondition') {
+    // Multiple tabs open, persistence can only be enabled in one tab
+    console.warn('Offline persistence not enabled (multiple tabs)');
+  } else if (err.code === 'unimplemented') {
+    // Browser doesn't support persistence
+    console.warn('Offline persistence not supported');
+  }
+}
+```
+
+## Firebase Operations Patterns
+
+### Message Operations
+```javascript
+// lib/firebase/firestore.js
+
+/**
+ * Send a message to a conversation
+ */
+export async function sendMessageToFirestore(conversationId, messageData) {
+  try {
+    const messagesRef = collection(
+      db,
+      `conversations/${conversationId}/messages`
+    );
+    
+    const docRef = await addDoc(messagesRef, {
+      ...messageData,
+      timestamp: serverTimestamp(), // Use server timestamp
+    });
+    
+    return docRef.id;
+  } catch (error) {
+    console.error('Error sending message:', error);
+    throw new Error('Failed to send message');
+  }
+}
+
+/**
+ * Listen to messages in a conversation
+ */
+export function subscribeToMessages(conversationId, callback, onError) {
+  const messagesRef = collection(
+    db,
+    `conversations/${conversationId}/messages`
+  );
+  
+  const q = query(
+    messagesRef,
+    orderBy('timestamp', 'asc'),
+    limit(100)
+  );
+  
+  const unsubscribe = onSnapshot(
+    q,
+    (snapshot) => {
+      const messages = [];
+      snapshot.forEach((doc) => {
+        messages.push({ id: doc.id, ...doc.data() });
+      });
+      callback(messages);
+    },
+    (error) => {
+      console.error('Error listening to messages:', error);
+      onError?.(error);
+    }
+  );
+  
+  return unsubscribe;
+}
+```
+
+### Presence Operations
+```javascript
+// lib/firebase/presence.js
+
+import { doc, setDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { db } from './config';
+
+/**
+ * Set user online status
+ */
+export async function setUserOnline(userId) {
+  const presenceRef = doc(db, 'presence', userId);
+  
+  await setDoc(presenceRef, {
+    isOnline: true,
+    lastSeen: serverTimestamp(),
+  }, { merge: true });
+}
+
+/**
+ * Set user offline status
+ */
+export async function setUserOffline(userId) {
+  const presenceRef = doc(db, 'presence', userId);
+  
+  await setDoc(presenceRef, {
+    isOnline: false,
+    lastSeen: serverTimestamp(),
+  }, { merge: true });
+}
+
+/**
+ * Listen to user presence
+ */
+export function subscribeToPresence(userId, callback) {
+  const presenceRef = doc(db, 'presence', userId);
+  
+  const unsubscribe = onSnapshot(presenceRef, (doc) => {
+    if (doc.exists()) {
+      callback(doc.data());
+    }
+  });
+  
+  return unsubscribe;
+}
+```
+
+### Authentication Operations
+```javascript
+// lib/firebase/auth.js
+
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  onAuthStateChanged
+} from 'firebase/auth';
+import { auth } from './config';
+
+/**
+ * Sign up with email and password
+ */
+export async function signUpWithEmail(email, password) {
+  try {
+    const userCredential = await createUserWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
+    return userCredential.user;
+  } catch (error) {
+    console.error('Signup error:', error);
+    throw new Error(getAuthErrorMessage(error.code));
+  }
+}
+
+/**
+ * Sign in with email and password
+ */
+export async function signInWithEmail(email, password) {
+  try {
+    const userCredential = await signInWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
+    return userCredential.user;
+  } catch (error) {
+    console.error('Login error:', error);
+    throw new Error(getAuthErrorMessage(error.code));
+  }
+}
+
+/**
+ * Sign out current user
+ */
+export async function signOut() {
+  try {
+    await firebaseSignOut(auth);
+  } catch (error) {
+    console.error('Signout error:', error);
+    throw new Error('Failed to sign out');
+  }
+}
+
+/**
+ * Listen to auth state changes
+ */
+export function subscribeToAuthState(callback) {
+  return onAuthStateChanged(auth, callback);
+}
+
+/**
+ * Convert Firebase auth error codes to user-friendly messages
+ */
+function getAuthErrorMessage(errorCode) {
+  switch (errorCode) {
+    case 'auth/user-not-found':
+      return 'No account found with this email';
+    case 'auth/wrong-password':
+      return 'Incorrect password';
+    case 'auth/email-already-in-use':
+      return 'Email already registered';
+    case 'auth/weak-password':
+      return 'Password should be at least 6 characters';
+    case 'auth/invalid-email':
+      return 'Invalid email address';
+    default:
+      return 'Authentication failed. Please try again.';
+  }
+}
+```
+
+## Error Handling Pattern
+
+```javascript
+// Standard Firebase error handling
+export async function firestoreOperation() {
+  try {
+    // Firebase operation
+    const result = await someFirebaseCall();
+    return result;
+  } catch (error) {
+    // Log for debugging
+    console.error('Firebase operation failed:', error);
+    
+    // Throw user-friendly error
+    if (error.code === 'permission-denied') {
+      throw new Error('You don\'t have permission to perform this action');
+    } else if (error.code === 'unavailable') {
+      throw new Error('Service temporarily unavailable. Please try again.');
+    } else {
+      throw new Error('Operation failed. Please check your connection.');
+    }
+  }
+}
+```
+
+## Security Rules (to implement in Firebase Console)
+
+```javascript
+// Firestore Security Rules
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    function isParticipant(participants) {
+      return request.auth.uid in participants;
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId);
+    }
+    
+    // Conversations collection
+    match /conversations/{conversationId} {
+      allow read: if isAuthenticated() && 
+                     isParticipant(resource.data.participants);
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && 
+                       isParticipant(resource.data.participants);
+    }
+    
+    // Messages subcollection
+    match /conversations/{conversationId}/messages/{messageId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && 
+                       request.auth.uid == resource.data.senderId;
+    }
+    
+    // Presence collection
+    match /presence/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId);
+    }
+  }
+}
+```
+
+## Firebase Performance Tips
+
+### 1. Use Server Timestamps
+```javascript
+// GOOD - consistent across clients
+import { serverTimestamp } from 'firebase/firestore';
+
+await addDoc(collection(db, 'messages'), {
+  text: 'Hello',
+  timestamp: serverTimestamp() // Server sets the time
+});
+```
+
+### 2. Limit Real-Time Listeners
+```javascript
+// Only subscribe to what you need
+// Don't subscribe to entire collections
+const q = query(
+  collection(db, 'conversations'),
+  where('participants', 'array-contains', currentUserId),
+  limit(20)
+);
+```
+
+### 3. Use Indexes for Complex Queries
+```javascript
+// For queries with multiple orderBy/where clauses,
+// Firebase will prompt you to create an index
+// Follow the link in the error message to auto-create
+const q = query(
+  collection(db, 'messages'),
+  where('conversationId', '==', id),
+  where('status', '==', 'sent'),
+  orderBy('timestamp', 'desc')
+);
+// This will require a composite index
+```
+
+## Firebase Config Pattern
+
+```javascript
+// lib/firebase/config.js
+
+import { initializeApp } from 'firebase/app';
+import { getFirestore } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
+import { getStorage } from 'firebase/storage';
+
+const firebaseConfig = {
+  apiKey: process.env.FIREBASE_API_KEY,
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.FIREBASE_PROJECT_ID,
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.FIREBASE_APP_ID,
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+
+// Initialize services
+export const db = getFirestore(app);
+export const auth = getAuth(app);
+export const storage = getStorage(app);
+
+// Test connection
+export async function testFirebaseConnection() {
+  try {
+    const testDoc = doc(db, '_test_', 'connection');
+    await setDoc(testDoc, { timestamp: Date.now() });
+    console.log('✅ Firebase connected successfully');
+    return true;
+  } catch (error) {
+    console.error('❌ Firebase connection failed:', error);
+    return false;
+  }
+}
+```
+
+## Common Firebase Pitfalls
+
+### ❌ Don't Forget to Unsubscribe
+```javascript
+// Memory leak - listener never cleaned up
+useEffect(() => {
+  onSnapshot(query, callback);
+}, []); // WRONG!
+```
+
+### ✅ Always Clean Up
+```javascript
+useEffect(() => {
+  const unsubscribe = onSnapshot(query, callback);
+  return () => unsubscribe();
+}, []); // CORRECT!
+```
+
+### ❌ Don't Use Client Timestamps for Sync
+```javascript
+// Different devices have different times
+{ timestamp: Date.now() } // Can cause ordering issues
+```
+
+### ✅ Use Server Timestamps
+```javascript
+import { serverTimestamp } from 'firebase/firestore';
+{ timestamp: serverTimestamp() } // Consistent across all clients
+```

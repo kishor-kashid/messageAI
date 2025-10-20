@@ -1,0 +1,369 @@
+Description: Testing standards and patterns for MessageAI
+Globs: **/__tests__/**/*.test.js
+
+# Testing Rules - MessageAI MVP
+
+## Testing Philosophy
+
+- **Test critical paths thoroughly** - Auth, messaging, offline sync
+- **Unit tests for logic** - Pure functions, utilities, business logic
+- **Integration tests for flows** - Database operations, sync processes
+- **Manual tests for UI** - Use simulators for real-time testing
+
+## Test File Organization
+
+```
+__tests__/
+  unit/
+    auth.test.js           → Test authentication functions
+    validation.test.js     → Test input validation
+    formatters.test.js     → Test date/time formatting
+    offlineQueue.test.js   → Test message queuing
+    messageSync.test.js    → Test sync logic
+  integration/
+    database.test.js       → Test SQLite CRUD operations
+    contacts.test.js       → Test contact management flow
+    messaging.test.js      → Test end-to-end messaging
+    presence.test.js       → Test online/offline updates
+  setup.js                 → Test configuration and mocks
+```
+
+## Test Structure Pattern
+
+### Standard Test Template
+```javascript
+// Import the module under test
+import { functionName } from '../lib/path/to/module';
+
+// Mock external dependencies
+jest.mock('firebase/firestore');
+jest.mock('expo-sqlite');
+
+describe('ModuleName', () => {
+  // Setup before each test
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+  
+  // Group related tests
+  describe('functionName', () => {
+    it('should do X when given valid input', () => {
+      // Arrange
+      const input = 'test';
+      const expected = 'result';
+      
+      // Act
+      const result = functionName(input);
+      
+      // Assert
+      expect(result).toBe(expected);
+    });
+    
+    it('should throw error when given invalid input', () => {
+      // Arrange
+      const invalidInput = null;
+      
+      // Act & Assert
+      expect(() => functionName(invalidInput)).toThrow();
+    });
+  });
+});
+```
+
+## Unit Test Patterns
+
+### Testing Pure Functions
+```javascript
+// lib/utils/formatters.js
+export function formatTimestamp(timestamp) {
+  // ... implementation
+}
+
+// __tests__/unit/formatters.test.js
+describe('formatTimestamp', () => {
+  it('should return "Today" for today\'s date', () => {
+    const today = Date.now();
+    expect(formatTimestamp(today)).toBe('Today');
+  });
+  
+  it('should return "Yesterday" for yesterday', () => {
+    const yesterday = Date.now() - 86400000;
+    expect(formatTimestamp(yesterday)).toContain('Yesterday');
+  });
+  
+  it('should return date string for older dates', () => {
+    const oldDate = new Date('2025-01-01').getTime();
+    expect(formatTimestamp(oldDate)).toBe('Jan 1, 2025');
+  });
+});
+```
+
+### Testing Async Functions
+```javascript
+// __tests__/unit/auth.test.js
+describe('signInWithEmail', () => {
+  it('should return user object on successful login', async () => {
+    // Arrange
+    const mockUser = { uid: '123', email: 'test@example.com' };
+    signInWithEmailAndPassword.mockResolvedValue({ user: mockUser });
+    
+    // Act
+    const result = await signInWithEmail('test@example.com', 'password123');
+    
+    // Assert
+    expect(result).toEqual(mockUser);
+  });
+  
+  it('should throw error on invalid credentials', async () => {
+    // Arrange
+    signInWithEmailAndPassword.mockRejectedValue(new Error('Invalid credentials'));
+    
+    // Act & Assert
+    await expect(signInWithEmail('wrong@example.com', 'wrong'))
+      .rejects.toThrow('Invalid credentials');
+  });
+});
+```
+
+## Integration Test Patterns
+
+### Testing Database Operations
+```javascript
+// __tests__/integration/database.test.js
+import * as SQLite from 'expo-sqlite';
+import { saveMessage, getMessages } from '../../lib/database/messages';
+
+// Use in-memory database for tests
+let db;
+
+beforeEach(async () => {
+  db = await SQLite.openDatabase(':memory:');
+  await initializeSchema(db);
+});
+
+afterEach(async () => {
+  await db.closeAsync();
+});
+
+describe('Message Database Operations', () => {
+  it('should save and retrieve messages', async () => {
+    // Arrange
+    const message = {
+      id: '123',
+      conversationId: 'conv-1',
+      text: 'Test message',
+      timestamp: Date.now(),
+      status: 'sent'
+    };
+    
+    // Act
+    await saveMessage(db, message);
+    const retrieved = await getMessages(db, 'conv-1');
+    
+    // Assert
+    expect(retrieved).toHaveLength(1);
+    expect(retrieved[0].text).toBe('Test message');
+  });
+});
+```
+
+### Testing Message Flow
+```javascript
+// __tests__/integration/messaging.test.js
+describe('Message Send Flow', () => {
+  it('should save locally, sync to Firebase, and update status', async () => {
+    // Arrange
+    const message = { text: 'Hello', conversationId: 'conv-1' };
+    mockNetworkStatus(true); // Online
+    
+    // Act
+    await sendMessage(message);
+    
+    // Assert
+    // 1. Should be in local database
+    const localMessages = await getLocalMessages('conv-1');
+    expect(localMessages).toHaveLength(1);
+    
+    // 2. Should be sent to Firebase
+    expect(mockFirestore.addDoc).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ text: 'Hello' })
+    );
+    
+    // 3. Should be marked as synced
+    expect(localMessages[0].synced).toBe(true);
+  });
+});
+```
+
+## Mocking Patterns
+
+### Mock Firebase
+```javascript
+// __tests__/setup.js
+jest.mock('firebase/firestore', () => ({
+  getFirestore: jest.fn(),
+  collection: jest.fn(),
+  addDoc: jest.fn(),
+  getDocs: jest.fn(),
+  query: jest.fn(),
+  where: jest.fn(),
+  onSnapshot: jest.fn((query, callback) => {
+    // Return unsubscribe function
+    return jest.fn();
+  }),
+}));
+
+jest.mock('firebase/auth', () => ({
+  getAuth: jest.fn(),
+  signInWithEmailAndPassword: jest.fn(),
+  createUserWithEmailAndPassword: jest.fn(),
+  signOut: jest.fn(),
+}));
+```
+
+### Mock SQLite
+```javascript
+// For unit tests, mock completely
+jest.mock('expo-sqlite', () => ({
+  openDatabase: jest.fn(() => ({
+    transaction: jest.fn(),
+    executeSql: jest.fn(),
+  })),
+}));
+
+// For integration tests, use real SQLite with :memory:
+// (Don't mock, use actual SQLite in-memory database)
+```
+
+### Mock Network Status
+```javascript
+// __tests__/setup.js
+let mockIsOnline = true;
+
+export const mockNetworkStatus = (isOnline) => {
+  mockIsOnline = isOnline;
+};
+
+jest.mock('@react-native-community/netinfo', () => ({
+  fetch: jest.fn(() => Promise.resolve({
+    isConnected: mockIsOnline,
+  })),
+  addEventListener: jest.fn((callback) => {
+    callback({ isConnected: mockIsOnline });
+    return jest.fn(); // Return unsubscribe
+  }),
+}));
+```
+
+## Test Coverage Requirements
+
+### Must Achieve >70% Coverage On:
+- `lib/firebase/auth.js` - All auth functions
+- `lib/firebase/firestore.js` - All Firestore operations
+- `lib/database/messages.js` - All message DB operations
+- `lib/sync/offlineQueue.js` - Queue management
+- `lib/sync/messageSync.js` - Sync logic
+- `lib/utils/validation.js` - Validation functions
+- `lib/utils/formatters.js` - Formatting functions
+
+### Can Skip Testing:
+- UI components (test manually)
+- Native modules (already tested)
+- Third-party library internals
+
+## Running Tests
+
+### Development Workflow
+```bash
+# Watch mode during development
+npm test -- --watch
+
+# Run specific test file
+npm test auth.test.js
+
+# Run all unit tests
+npm test __tests__/unit
+
+# Run all integration tests
+npm test __tests__/integration
+
+# Generate coverage report
+npm test -- --coverage
+
+# Run tests with verbose output
+npm test -- --verbose
+```
+
+### Test Verification Checklist
+After each PR with tests:
+- [ ] All tests pass (`npm test`)
+- [ ] No test warnings or errors
+- [ ] Coverage meets >70% for tested modules
+- [ ] Tests run fast (<5 seconds for unit tests)
+- [ ] Integration tests complete (<30 seconds)
+
+## Common Testing Mistakes
+
+### ❌ Don't Test Implementation Details
+```javascript
+// BAD - testing internal state
+it('should set loading to true', () => {
+  const { result } = renderHook(() => useMessages());
+  expect(result.current.loading).toBe(true);
+});
+```
+
+### ✅ Test Behavior and Output
+```javascript
+// GOOD - testing behavior
+it('should fetch messages when hook is called', async () => {
+  const { result } = renderHook(() => useMessages('conv-1'));
+  await waitFor(() => expect(result.current.messages).toHaveLength(5));
+});
+```
+
+### ❌ Don't Make Tests Depend on Each Other
+```javascript
+// BAD - tests share state
+describe('Messages', () => {
+  let savedMessage;
+  
+  it('should save message', async () => {
+    savedMessage = await saveMessage(msg);
+  });
+  
+  it('should retrieve message', async () => {
+    const msg = await getMessage(savedMessage.id); // Depends on previous test!
+  });
+});
+```
+
+### ✅ Make Each Test Independent
+```javascript
+// GOOD - tests are independent
+describe('Messages', () => {
+  it('should save message', async () => {
+    const saved = await saveMessage(msg);
+    expect(saved.id).toBeDefined();
+  });
+  
+  it('should retrieve message', async () => {
+    const saved = await saveMessage(msg); // Setup within test
+    const retrieved = await getMessage(saved.id);
+    expect(retrieved.text).toBe(msg.text);
+  });
+});
+```
+
+## Test Quality Checklist
+
+For every test file:
+- [ ] Tests are independent (no shared state)
+- [ ] Clear test descriptions (describe what, when, expected)
+- [ ] Arrange-Act-Assert pattern followed
+- [ ] All external dependencies mocked
+- [ ] Cleanup in afterEach/afterAll
+- [ ] Both happy path and error cases tested
+- [ ] Edge cases covered (null, undefined, empty)
+- [ ] Tests run fast and reliably

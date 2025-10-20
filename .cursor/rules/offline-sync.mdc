@@ -1,0 +1,637 @@
+Description: Offline-first architecture and sync patterns for MessageAI
+Globs: **/lib/sync/**/*.js, **/lib/database/**/*.js
+
+# Offline Sync Rules - MessageAI MVP
+
+## Offline-First Philosophy
+
+**Core Principle:** The app MUST work perfectly without network. Syncing is a background enhancement.
+
+```
+Local SQLite = Source of Truth for UI
+Firebase = Sync layer for multi-device
+```
+
+## Sync Architecture
+
+```
+┌─────────────────────────────────────────┐
+│              User Action                │
+│         (Send message, etc.)            │
+└──────────────────┬──────────────────────┘
+                   │
+                   ▼
+        ┌──────────────────────┐
+        │   Save to SQLite     │ ◄── Always succeeds
+        │   (synced: false)    │
+        └──────────┬───────────┘
+                   │
+                   ▼
+        ┌──────────────────────┐
+        │  Update UI           │ ◄── Instant feedback
+        │  (Optimistic update) │
+        └──────────┬───────────┘
+                   │
+                   ▼
+          ┌────────────────┐
+          │ Network check  │
+          └───┬────────┬───┘
+              │        │
+         Online        Offline
+              │        │
+              ▼        ▼
+      ┌────────────┐  ┌────────────┐
+      │ Send to    │  │ Add to     │
+      │ Firebase   │  │ Queue      │
+      └─────┬──────┘  └────────────┘
+            │
+            ▼
+      ┌────────────┐
+      │ Update     │
+      │ synced:    │
+      │ true       │
+      └────────────┘
+```
+
+## Offline Queue Implementation
+
+### Queue Structure
+```javascript
+// lib/sync/offlineQueue.js
+
+/**
+ * Queue structure in memory + SQLite
+ * 
+ * In SQLite:
+ * - Messages with synced: false
+ * 
+ * In Memory (for fast access):
+ * - Array of pending operations
+ */
+
+const queue = [];
+
+/**
+ * Add message to offline queue
+ */
+export async function addToQueue(message) {
+  // 1. Save to SQLite with synced: false
+  await saveMessageToLocalDB({
+    ...message,
+    synced: false,
+    status: 'sending'
+  });
+  
+  // 2. Add to in-memory queue for processing
+  queue.push({
+    id: message.id,
+    type: 'message',
+    data: message,
+    attempts: 0,
+    timestamp: Date.now()
+  });
+  
+  return message.id;
+}
+
+/**
+ * Get all queued messages
+ */
+export async function getQueuedMessages() {
+  // Get from SQLite (source of truth)
+  return await getUnsyncedMessagesFromDB();
+}
+
+/**
+ * Remove from queue after successful sync
+ */
+export async function removeFromQueue(messageId) {
+  // 1. Update SQLite
+  await updateMessageSyncStatus(messageId, true);
+  
+  // 2. Remove from memory queue
+  const index = queue.findIndex(item => item.id === messageId);
+  if (index > -1) {
+    queue.splice(index, 1);
+  }
+}
+
+/**
+ * Get queue size
+ */
+export function getQueueSize() {
+  return queue.length;
+}
+
+/**
+ * Clear queue (use with caution)
+ */
+export function clearQueue() {
+  queue.length = 0;
+}
+```
+
+## Message Sync Logic
+
+### Sync Process
+```javascript
+// lib/sync/messageSync.js
+
+import { addToQueue, getQueuedMessages, removeFromQueue } from './offlineQueue';
+import { sendMessageToFirestore } from '../firebase/firestore';
+import { updateMessageStatus } from '../database/messages';
+
+/**
+ * Process offline queue when connection restored
+ */
+export async function syncQueuedMessages() {
+  const queuedMessages = await getQueuedMessages();
+  
+  console.log(`Syncing ${queuedMessages.length} queued messages`);
+  
+  for (const message of queuedMessages) {
+    try {
+      // Send to Firebase
+      await sendMessageToFirestore(message.conversation_id, {
+        text: message.text,
+        imageUrl: message.image_url,
+        senderId: message.sender_id,
+        timestamp: message.timestamp
+      });
+      
+      // Mark as synced in local DB
+      await removeFromQueue(message.id);
+      
+      // Update status to 'sent'
+      await updateMessageStatus(message.id, 'sent');
+      
+      console.log(`✅ Synced message ${message.id}`);
+    } catch (error) {
+      console.error(`❌ Failed to sync message ${message.id}:`, error);
+      
+      // Retry logic (optional for MVP)
+      // If retry count < max, try again later
+      // Otherwise, mark as failed
+    }
+  }
+}
+
+/**
+ * Send message with offline support
+ */
+export async function sendMessageWithOfflineSupport(conversationId, messageData) {
+  const message = {
+    id: generateId(),
+    conversation_id: conversationId,
+    ...messageData,
+    timestamp: Date.now(),
+    status: 'sending',
+    synced: false
+  };
+  
+  // 1. Always save locally first
+  await saveMessageToLocalDB(message);
+  
+  // 2. Check network status
+  const isOnline = await checkNetworkStatus();
+  
+  if (isOnline) {
+    try {
+      // 3a. Send to Firebase if online
+      await sendMessageToFirestore(conversationId, message);
+      
+      // 3b. Mark as synced
+      await updateMessageSyncStatus(message.id, true);
+      await updateMessageStatus(message.id, 'sent');
+    } catch (error) {
+      // If send fails, add to queue
+      console.error('Send failed, adding to queue:', error);
+      await addToQueue(message);
+    }
+  } else {
+    // 3c. Add to queue if offline
+    await addToQueue(message);
+  }
+  
+  return message;
+}
+```
+
+## Network Status Monitoring
+
+### Network Detection Hook
+```javascript
+// lib/hooks/useNetworkStatus.js
+
+import { useState, useEffect } from 'react';
+import NetInfo from '@react-native-community/netinfo';
+
+export function useNetworkStatus() {
+  const [isOnline, setIsOnline] = useState(true);
+  const [networkType, setNetworkType] = useState(null);
+  
+  useEffect(() => {
+    // Check initial state
+    NetInfo.fetch().then(state => {
+      setIsOnline(state.isConnected);
+      setNetworkType(state.type);
+    });
+    
+    // Listen for changes
+    const unsubscribe = NetInfo.addEventListener(state => {
+      setIsOnline(state.isConnected);
+      setNetworkType(state.type);
+      
+      // Trigger sync when going online
+      if (state.isConnected) {
+        console.log('Network restored, syncing...');
+        syncQueuedMessages();
+      }
+    });
+    
+    return () => unsubscribe();
+  }, []);
+  
+  return { isOnline, networkType };
+}
+```
+
+## Database Operations with Sync
+
+### Message CRUD with Sync Awareness
+```javascript
+// lib/database/messages.js
+
+import * as SQLite from 'expo-sqlite';
+
+const db = SQLite.openDatabase('messageai.db');
+
+/**
+ * Save message to local database
+ */
+export async function saveMessage(message) {
+  return new Promise((resolve, reject) => {
+    db.transaction(tx => {
+      tx.executeSql(
+        `INSERT INTO messages (
+          id, conversation_id, sender_id, text, image_url,
+          timestamp, status, synced
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          message.id,
+          message.conversation_id,
+          message.sender_id,
+          message.text,
+          message.image_url || null,
+          message.timestamp,
+          message.status,
+          message.synced ? 1 : 0
+        ],
+        (_, result) => resolve(result),
+        (_, error) => reject(error)
+      );
+    });
+  });
+}
+
+/**
+ * Get messages for a conversation
+ */
+export async function getMessages(conversationId) {
+  return new Promise((resolve, reject) => {
+    db.transaction(tx => {
+      tx.executeSql(
+        `SELECT * FROM messages 
+         WHERE conversation_id = ? 
+         ORDER BY timestamp ASC`,
+        [conversationId],
+        (_, { rows }) => resolve(rows._array),
+        (_, error) => reject(error)
+      );
+    });
+  });
+}
+
+/**
+ * Get unsynced messages (for offline queue)
+ */
+export async function getUnsyncedMessages() {
+  return new Promise((resolve, reject) => {
+    db.transaction(tx => {
+      tx.executeSql(
+        `SELECT * FROM messages 
+         WHERE synced = 0 
+         ORDER BY timestamp ASC`,
+        [],
+        (_, { rows }) => resolve(rows._array),
+        (_, error) => reject(error)
+      );
+    });
+  });
+}
+
+/**
+ * Update message sync status
+ */
+export async function updateMessageSyncStatus(messageId, synced) {
+  return new Promise((resolve, reject) => {
+    db.transaction(tx => {
+      tx.executeSql(
+        `UPDATE messages SET synced = ? WHERE id = ?`,
+        [synced ? 1 : 0, messageId],
+        (_, result) => resolve(result),
+        (_, error) => reject(error)
+      );
+    });
+  });
+}
+
+/**
+ * Update message status (sending → sent → delivered → read)
+ */
+export async function updateMessageStatus(messageId, status) {
+  return new Promise((resolve, reject) => {
+    db.transaction(tx => {
+      tx.executeSql(
+        `UPDATE messages SET status = ? WHERE id = ?`,
+        [status, messageId],
+        (_, result) => resolve(result),
+        (_, error) => reject(error)
+      );
+    });
+  });
+}
+```
+
+## Conflict Resolution
+
+### Simple Last-Write-Wins Strategy
+```javascript
+// lib/sync/conflictResolution.js
+
+/**
+ * Resolve conflicts between local and remote messages
+ * 
+ * Strategy: Server timestamp wins
+ * (Simple for MVP, can be enhanced later)
+ */
+export function resolveMessageConflict(localMessage, remoteMessage) {
+  // If remote message has newer timestamp, use it
+  if (remoteMessage.timestamp > localMessage.timestamp) {
+    return remoteMessage;
+  }
+  
+  // Otherwise keep local
+  return localMessage;
+}
+
+/**
+ * Merge local and remote message lists
+ */
+export function mergeMessages(localMessages, remoteMessages) {
+  const merged = new Map();
+  
+  // Add all local messages
+  localMessages.forEach(msg => {
+    merged.set(msg.id, msg);
+  });
+  
+  // Merge or override with remote messages
+  remoteMessages.forEach(msg => {
+    const localMsg = merged.get(msg.id);
+    
+    if (!localMsg) {
+      // New message from server
+      merged.set(msg.id, msg);
+    } else {
+      // Conflict - resolve
+      const resolved = resolveMessageConflict(localMsg, msg);
+      merged.set(msg.id, resolved);
+    }
+  });
+  
+  return Array.from(merged.values()).sort((a, b) => 
+    a.timestamp - b.timestamp
+  );
+}
+```
+
+## Integration in Components
+
+### Using Offline Support in Hooks
+```javascript
+// lib/hooks/useMessages.js
+
+import { useState, useEffect } from 'react';
+import { sendMessageWithOfflineSupport, syncQueuedMessages } from '../sync/messageSync';
+import { getMessages } from '../database/messages';
+import { subscribeToMessages } from '../firebase/firestore';
+import { useNetworkStatus } from './useNetworkStatus';
+
+export function useMessages(conversationId) {
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const { isOnline } = useNetworkStatus();
+  
+  useEffect(() => {
+    // 1. Load from local database immediately
+    loadLocalMessages();
+    
+    // 2. Subscribe to Firebase for real-time updates (if online)
+    let unsubscribe;
+    if (isOnline) {
+      unsubscribe = subscribeToMessages(
+        conversationId,
+        handleRemoteMessages
+      );
+    }
+    
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [conversationId, isOnline]);
+  
+  async function loadLocalMessages() {
+    try {
+      const local = await getMessages(conversationId);
+      setMessages(local);
+    } catch (error) {
+      console.error('Failed to load local messages:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+  
+  function handleRemoteMessages(remoteMessages) {
+    // Merge with local messages (conflict resolution)
+    setMessages(prev => mergeMessages(prev, remoteMessages));
+  }
+  
+  async function sendMessage(text, imageUrl = null) {
+    try {
+      const message = await sendMessageWithOfflineSupport(conversationId, {
+        text,
+        imageUrl,
+        senderId: currentUser.uid
+      });
+      
+      // Optimistic update
+      setMessages(prev => [...prev, message]);
+      
+      return message;
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      throw error;
+    }
+  }
+  
+  return {
+    messages,
+    loading,
+    sendMessage,
+    isOnline
+  };
+}
+```
+
+## Testing Offline Scenarios
+
+### Manual Testing Checklist
+```
+1. Send message while online
+   ✓ Message appears immediately
+   ✓ Status changes to 'sent'
+   ✓ Synced flag set to true
+
+2. Enable airplane mode, send message
+   ✓ Message appears immediately
+   ✓ Status shows 'sending'
+   ✓ Message saved to local DB with synced: false
+
+3. Send multiple messages while offline
+   ✓ All messages appear in order
+   ✓ All saved locally
+   ✓ All added to queue
+
+4. Disable airplane mode
+   ✓ Network detected automatically
+   ✓ Sync triggered
+   ✓ All messages sent to Firebase
+   ✓ Status updates to 'sent'
+   ✓ No messages lost
+
+5. Force quit app with queued messages
+   ✓ Reopen app
+   ✓ Queue restored from SQLite
+   ✓ When online, messages sync automatically
+```
+
+## Common Offline Pitfalls
+
+### ❌ Don't Block UI on Network Operations
+```javascript
+// BAD - UI waits for network
+async function sendMessage(text) {
+  await sendToFirebase(text); // Blocks if offline!
+  updateUI(text);
+}
+```
+
+### ✅ Save Locally First, Sync Later
+```javascript
+// GOOD - UI updates immediately
+async function sendMessage(text) {
+  await saveLocally(text);    // Always fast
+  updateUI(text);             // Instant feedback
+  
+  if (isOnline) {
+    sendToFirebase(text);     // Background
+  } else {
+    addToQueue(text);         // Queue for later
+  }
+}
+```
+
+### ❌ Don't Lose Messages on Failure
+```javascript
+// BAD - message lost if Firebase fails
+try {
+  await sendToFirebase(message);
+} catch (error) {
+  // Message is lost!
+}
+```
+
+### ✅ Always Queue on Failure
+```javascript
+// GOOD - message preserved
+await saveLocally(message);
+
+try {
+  await sendToFirebase(message);
+  markAsSynced(message.id);
+} catch (error) {
+  addToQueue(message);      // Try again later
+}
+```
+
+## Performance Considerations
+
+### Batch Sync for Efficiency
+```javascript
+// Instead of syncing one at a time
+for (const msg of queue) {
+  await sendMessage(msg); // Slow
+}
+
+// Batch sync (better)
+const batch = createFirestoreBatch();
+for (const msg of queue) {
+  batch.add(msg);
+}
+await batch.commit(); // Single network call
+```
+
+### Limit Queue Size
+```javascript
+// Prevent unbounded queue growth
+const MAX_QUEUE_SIZE = 1000;
+
+if (queue.length >= MAX_QUEUE_SIZE) {
+  console.warn('Queue full, cannot add more messages');
+  throw new Error('Message queue is full. Please connect to sync.');
+}
+```
+
+## Sync Status UI Patterns
+
+### Show Sync Status to User
+```javascript
+// In MessageBubble component
+function MessageBubble({ message }) {
+  const getStatusIcon = () => {
+    switch (message.status) {
+      case 'sending':
+        return '🕐'; // Clock
+      case 'sent':
+        return '✓';  // Single check
+      case 'delivered':
+        return '✓✓'; // Double check
+      case 'read':
+        return '✓✓'; // Double check (blue)
+    }
+  };
+  
+  return (
+    <View>
+      <Text>{message.text}</Text>
+      <Text>{getStatusIcon()}</Text>
+      {!message.synced && (
+        <Text style={{ color: 'orange' }}>
+          Waiting to send...
+        </Text>
+      )}
+    </View>
+  );
+}
+```
