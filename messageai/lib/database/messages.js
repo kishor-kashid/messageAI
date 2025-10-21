@@ -20,7 +20,8 @@ const isSQLiteAvailable = Platform.OS !== 'web';
  * @param {string} message.id - Unique message ID
  * @param {string} message.conversationId - Conversation ID
  * @param {string} message.senderId - Sender user ID
- * @param {string} message.content - Message content
+ * @param {string} [message.content] - Message content (optional if imageUrl provided)
+ * @param {string} [message.imageUrl] - Image URL (optional)
  * @param {number} message.timestamp - Message timestamp
  * @param {string} message.status - Message status (sent, delivered, read, pending, failed)
  * @param {string} [message.type='text'] - Message type (text, image, etc.)
@@ -37,7 +38,8 @@ export async function saveMessage(message) {
     id,
     conversationId,
     senderId,
-    content,
+    content = null,
+    imageUrl = null,
     timestamp,
     status,
     type = 'text',
@@ -46,13 +48,15 @@ export async function saveMessage(message) {
 
   const metadataJson = metadata ? JSON.stringify(metadata) : null;
   const now = Date.now();
+  // Use empty string instead of null for content to avoid NOT NULL constraint
+  const contentValue = content || '';
 
   try {
     db.runSync(
       `INSERT OR REPLACE INTO messages 
-       (id, conversationId, senderId, content, timestamp, status, type, metadata, updatedAt) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
-      [id, conversationId, senderId, content, timestamp, status, type, metadataJson, now]
+       (id, conversationId, senderId, content, imageUrl, timestamp, status, type, metadata, updatedAt) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      [id, conversationId, senderId, contentValue, imageUrl, timestamp, status, type, metadataJson, now]
     );
     console.log(`✅ Message saved: ${id}`);
   } catch (error) {
@@ -260,6 +264,7 @@ export async function bulkSaveMessages(messages) {
         conversationId,
         senderId,
         content,
+        imageUrl,
         timestamp,
         status,
         type = 'text',
@@ -267,12 +272,14 @@ export async function bulkSaveMessages(messages) {
       } = message;
 
       const metadataJson = metadata ? JSON.stringify(metadata) : null;
+      // Use empty string instead of null for content to avoid NOT NULL constraint
+      const contentValue = content || '';
 
       return {
         sql: `INSERT OR REPLACE INTO messages 
-              (id, conversationId, senderId, content, timestamp, status, type, metadata, updatedAt) 
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
-        args: [id, conversationId, senderId, content, timestamp, status, type, metadataJson, now]
+              (id, conversationId, senderId, content, imageUrl, timestamp, status, type, metadata, updatedAt) 
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        args: [id, conversationId, senderId, contentValue, imageUrl, timestamp, status, type, metadataJson, now]
       };
     });
 

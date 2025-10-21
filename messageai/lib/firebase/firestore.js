@@ -522,16 +522,18 @@ export async function deleteConversation(conversationId) {
  * @param {Object} messageData - Message data
  * @param {string} messageData.conversationId - Conversation ID
  * @param {string} messageData.senderId - Sender user ID
- * @param {string} messageData.content - Message text content
+ * @param {string} [messageData.content] - Message text content (optional if imageUrl provided)
+ * @param {string} [messageData.imageUrl] - Image URL (optional)
  * @param {string} [messageData.type='text'] - Message type
  * @returns {Promise<Object>} Created message object
  */
 export async function sendMessage(messageData) {
   try {
-    const { conversationId, senderId, content, type = 'text' } = messageData;
+    const { conversationId, senderId, content = null, imageUrl = null, type = 'text' } = messageData;
 
-    if (!content || content.trim() === '') {
-      throw new Error('Message content cannot be empty');
+    // At least one of content or imageUrl must be provided
+    if ((!content || content.trim() === '') && !imageUrl) {
+      throw new Error('Message must have either content or an image');
     }
 
     // Create message document
@@ -543,7 +545,8 @@ export async function sendMessage(messageData) {
       id: newMessageRef.id,
       conversationId,
       senderId,
-      content: content.trim(),
+      content: content ? content.trim() : '', // Use empty string, never null
+      imageUrl: imageUrl || null,
       type,
       timestamp,
       status: 'sent',
@@ -553,7 +556,8 @@ export async function sendMessage(messageData) {
     await setDoc(newMessageRef, message);
     
     // Update conversation's last message
-    await updateConversationLastMessage(conversationId, content.trim(), timestamp);
+    const lastMessageText = content ? content.trim() : (imageUrl ? '📷 Image' : '');
+    await updateConversationLastMessage(conversationId, lastMessageText, timestamp);
     
     // Increment unread count for other participants
     try {
@@ -664,6 +668,12 @@ export function subscribeToMessages(conversationId, callback) {
  */
 export async function updateMessageStatus(conversationId, messageId, status) {
   try {
+    // Skip temporary/optimistic messages
+    if (messageId.startsWith('temp-')) {
+      console.log(`⏭️ Skipping status update for temporary message: ${messageId}`);
+      return;
+    }
+    
     const messageRef = doc(db, 'conversations', conversationId, 'messages', messageId);
     await updateDoc(messageRef, {
       status,
@@ -685,9 +695,17 @@ export async function updateMessageStatus(conversationId, messageId, status) {
  */
 export async function markMessagesAsRead(conversationId, messageIds) {
   try {
+    // Filter out temporary/optimistic messages (IDs starting with "temp-")
+    const realMessageIds = messageIds.filter(id => !id.startsWith('temp-'));
+    
+    if (realMessageIds.length === 0) {
+      console.log('⏭️ No real messages to mark as read (all are temporary)');
+      return;
+    }
+    
     const batch = [];
     
-    for (const messageId of messageIds) {
+    for (const messageId of realMessageIds) {
       const messageRef = doc(db, 'conversations', conversationId, 'messages', messageId);
       batch.push(
         updateDoc(messageRef, {
@@ -698,7 +716,7 @@ export async function markMessagesAsRead(conversationId, messageIds) {
     }
     
     await Promise.all(batch);
-    console.log(`✅ Marked ${messageIds.length} messages as read`);
+    console.log(`✅ Marked ${realMessageIds.length} messages as read`);
   } catch (error) {
     console.error('Error marking messages as read:', error);
     throw new Error('Failed to mark messages as read');

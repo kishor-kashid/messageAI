@@ -20,10 +20,11 @@
  * @property {string} id - Message unique identifier
  * @property {string} conversationId - ID of the conversation this message belongs to
  * @property {string} senderId - ID of the user who sent the message
- * @property {string} text - Message text content
- * @property {string} [imageUrl] - Optional URL to attached image
+ * @property {string} [content] - Message text content (optional if image is present)
+ * @property {string} [text] - Alias for content (for backward compatibility)
+ * @property {string} [imageUrl] - URL to attached image (from Firebase Storage)
  * @property {number} timestamp - Message creation timestamp
- * @property {'sending'|'sent'|'delivered'|'read'} status - Message delivery status
+ * @property {'sending'|'sent'|'delivered'|'read'|'queued'|'failed'} status - Message delivery status
  * @property {string[]} [readBy] - Array of user IDs who have read this message (for group chats)
  * @property {boolean} synced - Whether message has been synced to server
  */
