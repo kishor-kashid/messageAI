@@ -166,15 +166,17 @@ export function useMessages(conversationId) {
 
   /**
    * Send a message with optimistic UI update
-   * @param {string} content - Message text content
+   * @param {string} content - Message text content (optional if imageUrl provided)
+   * @param {string} imageUrl - Image URL (optional)
    * @returns {Promise<Object>} Sent message object
    */
-  const sendMessage = useCallback(async (content) => {
+  const sendMessage = useCallback(async (content, imageUrl = null) => {
     if (!user || !conversationId) {
       throw new Error('User or conversation not available');
     }
 
-    if (!content || content.trim() === '') {
+    // At least one of content or imageUrl must be provided
+    if ((!content || content.trim() === '') && !imageUrl) {
       throw new Error('Message cannot be empty');
     }
 
@@ -186,8 +188,9 @@ export function useMessages(conversationId) {
       id: optimisticId,
       conversationId,
       senderId: user.uid,
-      content: content.trim(),
-      type: 'text',
+      content: content ? content.trim() : '', // Always use empty string, never null
+      imageUrl: imageUrl || null,
+      type: imageUrl ? 'image' : 'text',
       timestamp: Date.now(),
       status: 'sending',
       metadata: null,
@@ -224,8 +227,9 @@ export function useMessages(conversationId) {
       const sentMessage = await sendFirestoreMessage({
         conversationId,
         senderId: user.uid,
-        content: content.trim(),
-        type: 'text',
+        content: content ? content.trim() : '', // Use empty string, never null
+        imageUrl: imageUrl || null,
+        type: imageUrl ? 'image' : 'text',
       });
 
       // 5. Remove optimistic message (Firestore subscription will add real one)

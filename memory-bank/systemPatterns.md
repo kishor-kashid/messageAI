@@ -1,6 +1,6 @@
 # System Patterns: MessageAI MVP
 
-**Last Updated:** October 21, 2025
+**Last Updated:** October 21, 2025 (Evening Update)
 
 ---
 
@@ -151,23 +151,28 @@ updateUI();
 **Implementation:**
 ```javascript
 // When offline
-1. Save message to SQLite with synced: false
-2. Add to in-memory queue
-3. Display in UI with "sending" status
+1. Check network status with @react-native-community/netinfo
+2. Save message to SQLite offline_queue table
+3. Add to in-memory queue with retry tracking
+4. Display in UI with "queued" status
 
 // When online
-1. Detect network restoration
-2. Send all queued messages to Firebase
-3. Update SQLite with synced: true
+1. Detect network restoration via useNetworkStatus hook
+2. Send all queued messages to Firebase with syncQueuedMessages()
+3. Update SQLite: delete from queue, save with Firestore ID
 4. Update UI status to "sent"
+5. Retry failed messages with exponential backoff
 ```
 
-**🚧 Implementation Status:** Partially complete
+**✅ Implementation Status:** COMPLETE (PR #11)
 - ✅ Messages save to SQLite first (always works)
 - ✅ Optimistic UI shows messages immediately
-- ⏳ Network monitoring not yet implemented
-- ⏳ Automatic retry on reconnection not yet implemented
-- **Next:** PR #11 will complete this pattern
+- ✅ Network monitoring with @react-native-community/netinfo
+- ✅ Automatic retry on reconnection
+- ✅ SQLite offline_queue table for persistent storage
+- ✅ Sync engine in messageSync.js with error handling
+- ✅ Network status hook for real-time monitoring
+- **Result:** Zero message loss during offline periods
 
 ### 4. Repository Pattern (Light)
 
@@ -415,7 +420,163 @@ useEffect(() => {
 - Multiple listeners fire duplicate updates
 - All hooks in this app follow this pattern correctly ✅
 
+### 9. Presence System Pattern
+
+**Where:** User online/offline status tracking  
+**Why:** Users need to know if recipients are available
+
+**Implementation:**
+```javascript
+// In app/_layout.jsx - App lifecycle tracking
+useEffect(() => {
+  const subscription = AppState.addEventListener('change', (nextAppState) => {
+    if (nextAppState === 'active') {
+      setOnline(user.uid); // Firestore update
+    } else if (nextAppState.match(/inactive|background/)) {
+      setOffline(user.uid); // Firestore update
+    }
+  });
+  return () => subscription.remove();
+}, [user]);
+
+// In chat screen - Real-time presence monitoring
+useEffect(() => {
+  const unsubscribe = listenToPresence(otherUserId, (presenceData) => {
+    setOtherParticipant(prev => ({
+      ...prev,
+      isOnline: presenceData.isOnline,
+      lastSeen: presenceData.lastSeen
+    }));
+  });
+  return () => unsubscribe();
+}, [otherUserId]);
+```
+
+**Benefits:**
+- Automatic online/offline based on app state
+- Real-time presence updates via Firestore listeners
+- Graceful handling of app crashes (lastSeen timestamp)
+- No manual presence management required
+
+**✅ Implementation Status:** Complete (PR #8)
+
+### 10. Group Chat Pattern
+
+**Where:** Multi-user conversations  
+**Why:** Support conversations with 3+ participants
+
+**Architecture:**
+```javascript
+// Conversation document
+{
+  id: 'conv123',
+  type: 'group',
+  groupName: 'Team Chat',
+  groupPhoto: 'url',
+  participantIds: ['user1', 'user2', 'user3'],
+  admins: ['user1'],
+  createdAt: timestamp,
+  lastMessage: 'Hello everyone',
+  lastMessageTimestamp: timestamp
+}
+
+// Messages include senderId for attribution
+{
+  id: 'msg123',
+  conversationId: 'conv123',
+  senderId: 'user2',
+  content: 'Hello!',
+  timestamp: timestamp
+}
+```
+
+**UI Patterns:**
+- MessageBubble shows sender name for group messages
+- ConversationHeader displays group name and participant count
+- ConversationListItem shows group badge (👥)
+- Create group screen with multi-select contact picker
+
+**✅ Implementation Status:** Complete (PR #9)
+
+### 11. Network Status Monitoring Pattern
+
+**Where:** Offline sync, message sending  
+**Why:** Detect online/offline state for intelligent queueing
+
+**Implementation:**
+```javascript
+// lib/hooks/useNetworkStatus.js
+import NetInfo from '@react-native-community/netinfo';
+
+export function useNetworkStatus() {
+  const [isOnline, setIsOnline] = useState(true);
+  const [networkType, setNetworkType] = useState(null);
+
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(state => {
+      setIsOnline(state.isConnected && state.isInternetReachable);
+      setNetworkType(state.type);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  return { isOnline, networkType };
+}
+```
+
+**Usage:**
+- Check before Firebase operations
+- Queue messages when offline
+- Trigger sync when connection restored
+- Show offline indicator in UI
+
+**✅ Implementation Status:** Complete (PR #11)
+
+### 12. Keyboard Handling Pattern (Platform-Specific)
+
+**Where:** Chat screen, message input  
+**Why:** Prevent keyboard from covering input field
+
+**iOS Approach:**
+```javascript
+<KeyboardAvoidingView 
+  behavior="padding" 
+  keyboardVerticalOffset={90}
+>
+  <MessageList />
+  <MessageInput />
+</KeyboardAvoidingView>
+```
+
+**Android Approach:**
+```javascript
+// app.json
+{
+  "android": {
+    // Use default "adjustResize" (don't specify softwareKeyboardLayoutMode)
+  }
+}
+
+// Component
+<SafeAreaView>
+  <View style={{flex: 1}}>
+    <MessageList />
+  </View>
+  <MessageInput />
+</SafeAreaView>
+```
+
+**Key Learnings:**
+- Android works best with default `adjustResize`
+- iOS needs `KeyboardAvoidingView` with `padding` behavior
+- Only one `KeyboardAvoidingView` per screen (avoid nesting)
+- `SafeAreaView` helps with notch/status bar spacing
+- Took multiple iterations to get right!
+
+**✅ Implementation Status:** Complete (after multiple bug fixes)
+
 ---
 
-This system patterns document reflects discovered patterns from actual implementation as of October 21, 2025.
+This system patterns document reflects discovered patterns from actual implementation as of October 21, 2025 (Evening Update).  
+**Status: 11/16 PRs Complete - Most Core Patterns Established**
 

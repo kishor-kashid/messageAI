@@ -202,7 +202,7 @@ export default function ChatScreen() {
     }
   }, [conversationId, user]);
 
-  const handleSendMessage = async (text) => {
+  const handleSendMessage = async (text, imageUrl = null) => {
     try {
       // Clear typing status when sending
       if (user && conversationId) {
@@ -212,7 +212,7 @@ export default function ChatScreen() {
         }
       }
 
-      await sendMessage(text);
+      await sendMessage(text, imageUrl);
     } catch (err) {
       console.error('Error sending message:', err);
       Alert.alert('Error', 'Failed to send message. Please try again.');
@@ -283,6 +283,7 @@ export default function ChatScreen() {
         </View>
         
         <MessageInput
+          conversationId={conversationId}
           onSend={handleSendMessage}
           onTextChange={handleTextChange}
           disabled={sending}
