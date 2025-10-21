@@ -1,7 +1,7 @@
 /**
  * Contact List Item Component
  * 
- * Displays a single contact with avatar, name, email, and online status
+ * Displays a single contact with avatar, name, and email
  */
 
 import React from 'react';
@@ -15,8 +15,6 @@ import { Avatar } from '../ui/Avatar';
  * @param {string} props.contact.displayName - Contact display name
  * @param {string} props.contact.email - Contact email
  * @param {string} [props.contact.profilePicture] - Profile picture URL
- * @param {boolean} [props.contact.isOnline] - Online status
- * @param {number} [props.contact.lastSeen] - Last seen timestamp
  * @param {Function} props.onPress - Callback when contact is tapped
  * @param {Function} [props.onLongPress] - Callback for long press (e.g., delete)
  */
@@ -25,28 +23,7 @@ export function ContactListItem({ contact, onPress, onLongPress }) {
     displayName,
     email,
     profilePicture,
-    isOnline = false,
-    lastSeen,
   } = contact;
-
-  // Format last seen time
-  const getLastSeenText = () => {
-    if (isOnline) return 'Online';
-    if (!lastSeen) return 'Offline';
-    
-    const now = Date.now();
-    const diff = now - lastSeen;
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-    
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    if (days === 1) return 'Yesterday';
-    if (days < 7) return `${days}d ago`;
-    return 'Long time ago';
-  };
 
   return (
     <TouchableOpacity
@@ -60,8 +37,8 @@ export function ContactListItem({ contact, onPress, onLongPress }) {
           uri={profilePicture}
           name={displayName}
           size={50}
-          showOnlineBadge={true}
-          isOnline={isOnline}
+          showOnlineBadge={false}
+          isOnline={false}
         />
       </View>
 
@@ -77,13 +54,6 @@ export function ContactListItem({ contact, onPress, onLongPress }) {
             {email}
           </Text>
         </View>
-        
-        <Text style={[
-          styles.status,
-          isOnline && styles.statusOnline
-        ]}>
-          {getLastSeenText()}
-        </Text>
       </View>
 
       <View style={styles.arrowContainer}>
@@ -127,15 +97,6 @@ const styles = StyleSheet.create({
   email: {
     fontSize: 14,
     color: '#666666',
-  },
-  status: {
-    fontSize: 12,
-    color: '#999999',
-    marginTop: 2,
-  },
-  statusOnline: {
-    color: '#4CAF50',
-    fontWeight: '500',
   },
   arrowContainer: {
     marginLeft: 8,

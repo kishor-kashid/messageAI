@@ -62,9 +62,11 @@ function NavigationGuard() {
     // Set user offline when app is closed
     const setUserOffline = async () => {
       try {
+        console.log('🔴 Setting user offline:', user.uid);
         await setOffline(user.uid);
+        console.log('✅ User set to offline successfully');
       } catch (error) {
-        console.error('Failed to set user offline:', error);
+        console.error('❌ Failed to set user offline:', error);
       }
     };
 

@@ -26,7 +26,7 @@ import {
   getUserProfile,
   getGroupParticipants,
 } from '../../lib/firebase/firestore';
-import { listenToPresence } from '../../lib/firebase/presence';
+import { listenToPresence, getUserPresence } from '../../lib/firebase/presence';
 import { MessageList } from '../../components/chat/MessageList';
 import { MessageInput } from '../../components/chat/MessageInput';
 import { ConversationHeader } from '../../components/conversations/ConversationHeader';
@@ -78,9 +78,18 @@ export default function ChatScreen() {
           const otherUserId = conv.participantIds.find(id => id !== user.uid);
           if (otherUserId) {
             const profile = await getUserProfile(otherUserId);
-            setOtherParticipant(profile);
+            
+            // Also fetch initial presence status
+            const presenceData = await getUserPresence(otherUserId);
+            const participantWithPresence = {
+              ...profile,
+              isOnline: presenceData?.isOnline || false,
+              lastSeen: presenceData?.lastSeen?.toMillis?.() || presenceData?.lastSeen || profile.lastSeen,
+            };
+            
+            setOtherParticipant(participantWithPresence);
             // Store in sender profiles for consistency
-            setSenderProfiles({ [otherUserId]: profile });
+            setSenderProfiles({ [otherUserId]: participantWithPresence });
           }
         } else if (conv.type === 'group') {
           // For group chats, get all participant profiles
@@ -111,6 +120,12 @@ export default function ChatScreen() {
     if (!otherUserId) return;
 
     const unsubscribe = listenToPresence(otherUserId, (presenceData) => {
+      console.log('📡 Presence update received:', {
+        userId: otherUserId,
+        isOnline: presenceData.isOnline,
+        lastSeen: presenceData.lastSeen,
+      });
+      
       setOtherParticipant((prev) => ({
         ...prev,
         isOnline: presenceData.isOnline || false,

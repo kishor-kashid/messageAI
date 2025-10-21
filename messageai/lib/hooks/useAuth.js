@@ -25,7 +25,7 @@ export function useAuth() {
     throw new Error('useAuth must be used within an AuthProvider');
   }
 
-  const { user, userProfile, loading, error, refreshProfile } = context;
+  const { user, userProfile, loading, error, refreshProfile, logout } = context;
 
   /**
    * Sign up a new user
@@ -131,6 +131,7 @@ export function useAuth() {
     signUp,
     signIn,
     signOut,
+    logout: logout || signOut, // Support both logout and signOut
     completeProfile,
     updateProfile,
     refreshProfile,

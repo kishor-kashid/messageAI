@@ -5,8 +5,9 @@
  */
 
 import React, { createContext, useState, useEffect } from 'react';
-import { subscribeToAuthState } from '../firebase/auth';
+import { subscribeToAuthState, signOut as firebaseSignOut } from '../firebase/auth';
 import { getUserProfile } from '../firebase/firestore';
+import { setOffline } from '../firebase/presence';
 
 export const AuthContext = createContext({
   user: null,
@@ -14,6 +15,7 @@ export const AuthContext = createContext({
   loading: true,
   error: null,
   refreshProfile: () => {},
+  logout: () => {},
 });
 
 export function AuthProvider({ children }) {
@@ -32,6 +34,33 @@ export function AuthProvider({ children }) {
         console.error('Error refreshing profile:', err);
         setError(err.message);
       }
+    }
+  };
+
+  // Function to logout
+  const logout = async () => {
+    try {
+      // Set user offline before logging out
+      if (user?.uid) {
+        try {
+          await setOffline(user.uid);
+        } catch (err) {
+          console.error('Error setting offline status:', err);
+          // Continue with logout even if this fails
+        }
+      }
+
+      // Sign out from Firebase
+      await firebaseSignOut();
+      
+      // Clear local state
+      setUser(null);
+      setUserProfile(null);
+      
+      console.log('✅ User logged out successfully');
+    } catch (err) {
+      console.error('Logout error:', err);
+      throw new Error('Failed to logout. Please try again.');
     }
   };
 
@@ -69,6 +98,7 @@ export function AuthProvider({ children }) {
     loading,
     error,
     refreshProfile,
+    logout,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
