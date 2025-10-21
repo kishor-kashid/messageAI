@@ -1111,3 +1111,49 @@ export async function makeGroupAdmin(conversationId, userId, promotedBy) {
   }
 }
 
+/**
+ * Update user display name
+ * @param {string} userId - User ID
+ * @param {string} displayName - New display name
+ * @returns {Promise<void>}
+ */
+export async function updateDisplayName(userId, displayName) {
+  try {
+    if (!displayName || displayName.trim() === '') {
+      throw new Error('Display name cannot be empty');
+    }
+
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, {
+      displayName: displayName.trim(),
+      updatedAt: serverTimestamp(),
+    });
+    
+    console.log(`✅ Display name updated for user ${userId}`);
+  } catch (error) {
+    console.error('Error updating display name:', error);
+    throw new Error('Failed to update display name');
+  }
+}
+
+/**
+ * Update user profile picture
+ * @param {string} userId - User ID
+ * @param {string} photoURL - New photo URL
+ * @returns {Promise<void>}
+ */
+export async function updateProfilePicture(userId, photoURL) {
+  try {
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, {
+      photoURL: photoURL || null,
+      updatedAt: serverTimestamp(),
+    });
+    
+    console.log(`✅ Profile picture updated for user ${userId}`);
+  } catch (error) {
+    console.error('Error updating profile picture:', error);
+    throw new Error('Failed to update profile picture');
+  }
+}
+
