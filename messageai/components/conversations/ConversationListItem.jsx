@@ -1,7 +1,8 @@
 /**
  * Conversation List Item Component
  * 
- * Displays a single conversation with avatar, name, last message preview, timestamp, and unread count
+ * Displays a single conversation with avatar, name, last message preview, timestamp, and unread count.
+ * Note: Online status badge has been removed from the conversation list.
  */
 
 import React from 'react';
@@ -71,8 +72,6 @@ export function ConversationListItem({
   const avatarUri = type === 'group'
     ? conversation.groupPhoto || null
     : otherParticipant?.profilePicture;
-    
-  const isOnline = type === 'direct' && otherParticipant?.isOnline;
 
   return (
     <TouchableOpacity
@@ -86,8 +85,8 @@ export function ConversationListItem({
           uri={avatarUri}
           displayName={displayName}
           size={56}
-          showOnlineBadge={type === 'direct'}
-          isOnline={isOnline}
+          showOnlineBadge={false}
+          isOnline={false}
         />
         {/* Group icon indicator */}
         {type === 'group' && (
