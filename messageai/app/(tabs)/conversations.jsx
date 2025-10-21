@@ -32,21 +32,8 @@ export default function ConversationsScreen() {
 
   // Handle conversation tap - navigate to chat
   const handleConversationPress = (conversation) => {
-    // TODO: Navigate to chat screen (PR #6)
-    Alert.alert(
-      'Open Chat',
-      `Chat with ${conversation.type === 'group' ? conversation.groupName : conversation.otherParticipant?.displayName}`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Open',
-          onPress: () => {
-            // router.push(`/chat/${conversation.id}`);
-            Alert.alert('Info', 'Chat screen coming in PR #6');
-          },
-        },
-      ]
-    );
+    // Navigate to chat screen
+    router.push(`/chat/${conversation.id}`);
   };
 
   // Handle long press - option to delete conversation
