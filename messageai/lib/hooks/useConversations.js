@@ -24,6 +24,7 @@ import {
   deleteConversation as deleteLocalConversation,
   bulkSaveConversations,
 } from '../database/conversations';
+import { getUserPresence } from '../firebase/presence';
 
 /**
  * Custom hook for conversation management
@@ -70,9 +71,15 @@ export function useConversations() {
                 if (otherParticipantId) {
                   try {
                     const participantProfile = await getUserProfile(otherParticipantId);
+                    const presenceData = await getUserPresence(otherParticipantId);
+                    
                     return {
                       ...conv,
-                      otherParticipant: participantProfile,
+                      otherParticipant: {
+                        ...participantProfile,
+                        isOnline: presenceData?.isOnline || false,
+                        lastSeen: presenceData?.lastSeen?.toMillis?.() || presenceData?.lastSeen,
+                      },
                       unreadCount: userUnreadCount, // User-specific count
                     };
                   } catch (err) {
@@ -273,9 +280,15 @@ export function useConversations() {
             if (otherParticipantId) {
               try {
                 const participantProfile = await getUserProfile(otherParticipantId);
+                const presenceData = await getUserPresence(otherParticipantId);
+                
                 return {
                   ...conv,
-                  otherParticipant: participantProfile,
+                  otherParticipant: {
+                    ...participantProfile,
+                    isOnline: presenceData?.isOnline || false,
+                    lastSeen: presenceData?.lastSeen?.toMillis?.() || presenceData?.lastSeen,
+                  },
                 };
               } catch (err) {
                 console.error('Error fetching participant:', err);

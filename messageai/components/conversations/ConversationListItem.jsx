@@ -83,7 +83,7 @@ export function ConversationListItem({
       <View style={styles.avatarContainer}>
         <Avatar
           uri={avatarUri}
-          name={displayName}
+          displayName={displayName}
           size={56}
           showOnlineBadge={type === 'direct'}
           isOnline={isOnline}

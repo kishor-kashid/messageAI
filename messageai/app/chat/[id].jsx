@@ -24,6 +24,7 @@ import {
   subscribeToTyping,
   getUserProfile,
 } from '../../lib/firebase/firestore';
+import { listenToPresence } from '../../lib/firebase/presence';
 import { MessageList } from '../../components/chat/MessageList';
 import { MessageInput } from '../../components/chat/MessageInput';
 import { ConversationHeader } from '../../components/conversations/ConversationHeader';
@@ -88,6 +89,26 @@ export default function ChatScreen() {
 
     loadConversation();
   }, [conversationId, user, router]);
+
+  // Subscribe to other participant's presence
+  useEffect(() => {
+    if (!conversation || conversation.type !== 'direct' || !user) return;
+    
+    const otherUserId = conversation.participantIds.find(id => id !== user.uid);
+    if (!otherUserId) return;
+
+    const unsubscribe = listenToPresence(otherUserId, (presenceData) => {
+      setOtherParticipant((prev) => ({
+        ...prev,
+        isOnline: presenceData.isOnline || false,
+        lastSeen: presenceData.lastSeen?.toMillis?.() || presenceData.lastSeen,
+      }));
+    });
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [conversation, user]);
 
   // Subscribe to typing indicators
   useEffect(() => {
@@ -212,8 +233,8 @@ export default function ChatScreen() {
       
       <KeyboardAvoidingView
         style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <MessageList
           messages={messages}
@@ -275,4 +296,3 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 });
-
