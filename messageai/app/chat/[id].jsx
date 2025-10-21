@@ -23,6 +23,7 @@ import {
   setTypingStatus,
   subscribeToTyping,
   getUserProfile,
+  getGroupParticipants,
 } from '../../lib/firebase/firestore';
 import { listenToPresence } from '../../lib/firebase/presence';
 import { MessageList } from '../../components/chat/MessageList';
@@ -39,6 +40,7 @@ export default function ChatScreen() {
   const [otherParticipant, setOtherParticipant] = useState(null);
   const [loadingConversation, setLoadingConversation] = useState(true);
   const [typingUserIds, setTypingUserIds] = useState([]);
+  const [senderProfiles, setSenderProfiles] = useState({});
   
   const {
     messages,
@@ -76,7 +78,17 @@ export default function ChatScreen() {
           if (otherUserId) {
             const profile = await getUserProfile(otherUserId);
             setOtherParticipant(profile);
+            // Store in sender profiles for consistency
+            setSenderProfiles({ [otherUserId]: profile });
           }
+        } else if (conv.type === 'group') {
+          // For group chats, get all participant profiles
+          const participants = await getGroupParticipants(conversationId);
+          const profilesMap = {};
+          participants.forEach(p => {
+            profilesMap[p.id] = p;
+          });
+          setSenderProfiles(profilesMap);
         }
         
         setLoadingConversation(false);
@@ -240,6 +252,8 @@ export default function ChatScreen() {
           messages={messages}
           currentUserId={user?.uid}
           loading={loadingMessages}
+          isGroupChat={conversation?.type === 'group'}
+          senderProfiles={senderProfiles}
         />
         
         {/* Typing Indicator */}

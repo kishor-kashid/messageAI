@@ -14,8 +14,17 @@ import { MessageBubble } from './MessageBubble';
  * @param {string} props.currentUserId - Current user's ID
  * @param {boolean} [props.loading=false] - Loading state
  * @param {Function} [props.onLoadMore] - Callback for loading more messages
+ * @param {boolean} [props.isGroupChat=false] - Whether this is a group chat
+ * @param {Object} [props.senderProfiles={}] - Map of senderId -> user profile
  */
-export function MessageList({ messages, currentUserId, loading = false, onLoadMore }) {
+export function MessageList({ 
+  messages, 
+  currentUserId, 
+  loading = false, 
+  onLoadMore,
+  isGroupChat = false,
+  senderProfiles = {},
+}) {
   const flatListRef = useRef(null);
   const previousMessageCount = useRef(messages.length);
 
@@ -41,6 +50,8 @@ export function MessageList({ messages, currentUserId, loading = false, onLoadMo
 
   const renderMessage = ({ item, index }) => {
     const isOwnMessage = item.senderId === currentUserId;
+    const senderProfile = senderProfiles[item.senderId];
+    const senderName = senderProfile?.displayName || 'Unknown';
     
     // Always show timestamp and status for better UX and status tracking visibility
     return (
@@ -48,6 +59,8 @@ export function MessageList({ messages, currentUserId, loading = false, onLoadMo
         message={item}
         isOwnMessage={isOwnMessage}
         showTimestamp={true}
+        isGroupChat={isGroupChat}
+        senderName={senderName}
       />
     );
   };

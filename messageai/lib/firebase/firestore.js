@@ -823,3 +823,291 @@ export function subscribeToTyping(conversationId, currentUserId, callback) {
   }
 }
 
+// ============================================
+// GROUP CHAT FUNCTIONS
+// ============================================
+
+/**
+ * Create a new group chat
+ * @param {Array<string>} participantIds - Array of participant user IDs (must include creator)
+ * @param {string} groupName - Name of the group
+ * @param {string} [groupPhoto] - Group photo URL (optional)
+ * @param {string} creatorId - ID of user creating the group
+ * @returns {Promise<Object>} Created group conversation object
+ */
+export async function createGroupChat(participantIds, groupName, groupPhoto = null, creatorId) {
+  try {
+    // Validate inputs
+    if (!participantIds || participantIds.length < 2) {
+      throw new Error('Group chat requires at least 2 participants');
+    }
+    
+    if (!groupName || groupName.trim() === '') {
+      throw new Error('Group name is required');
+    }
+    
+    // Create conversation with group type
+    const conversationsRef = collection(db, 'conversations');
+    const newConversationRef = doc(conversationsRef);
+    
+    // Initialize unread count object for each participant
+    const unreadCount = {};
+    participantIds.forEach(id => {
+      unreadCount[id] = 0;
+    });
+    
+    const conversationData = {
+      id: newConversationRef.id,
+      participantIds,
+      type: 'group',
+      groupName: groupName.trim(),
+      groupPhoto: groupPhoto || null,
+      creatorId,
+      admins: [creatorId], // Creator is admin by default
+      lastMessage: null,
+      lastMessageTimestamp: null,
+      unreadCount,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+
+    await setDoc(newConversationRef, conversationData);
+    
+    console.log(`✅ Group chat created: ${newConversationRef.id}`);
+    return { ...conversationData, id: newConversationRef.id };
+  } catch (error) {
+    console.error('Error creating group chat:', error);
+    throw new Error(error.message || 'Failed to create group chat');
+  }
+}
+
+/**
+ * Add a participant to a group chat
+ * @param {string} conversationId - Conversation ID
+ * @param {string} userId - User ID to add
+ * @param {string} addedBy - ID of user adding the participant
+ * @returns {Promise<void>}
+ */
+export async function addParticipant(conversationId, userId, addedBy) {
+  try {
+    const conversationRef = doc(db, 'conversations', conversationId);
+    
+    // Get current conversation
+    const conversationSnap = await getDoc(conversationRef);
+    if (!conversationSnap.exists()) {
+      throw new Error('Conversation not found');
+    }
+    
+    const conversationData = conversationSnap.data();
+    
+    // Verify it's a group chat
+    if (conversationData.type !== 'group') {
+      throw new Error('Can only add participants to group chats');
+    }
+    
+    // Verify addedBy is an admin or participant
+    if (!conversationData.participantIds.includes(addedBy)) {
+      throw new Error('Only participants can add new members');
+    }
+    
+    // Check if user is already a participant
+    if (conversationData.participantIds.includes(userId)) {
+      console.log('User is already a participant');
+      return;
+    }
+    
+    // Add participant
+    await updateDoc(conversationRef, {
+      participantIds: arrayUnion(userId),
+      [`unreadCount.${userId}`]: 0, // Initialize unread count
+      updatedAt: serverTimestamp(),
+    });
+    
+    console.log(`✅ Added participant ${userId} to group ${conversationId}`);
+  } catch (error) {
+    console.error('Error adding participant:', error);
+    throw new Error(error.message || 'Failed to add participant');
+  }
+}
+
+/**
+ * Remove a participant from a group chat
+ * @param {string} conversationId - Conversation ID
+ * @param {string} userId - User ID to remove
+ * @param {string} removedBy - ID of user removing the participant
+ * @returns {Promise<void>}
+ */
+export async function removeParticipant(conversationId, userId, removedBy) {
+  try {
+    const conversationRef = doc(db, 'conversations', conversationId);
+    
+    // Get current conversation
+    const conversationSnap = await getDoc(conversationRef);
+    if (!conversationSnap.exists()) {
+      throw new Error('Conversation not found');
+    }
+    
+    const conversationData = conversationSnap.data();
+    
+    // Verify it's a group chat
+    if (conversationData.type !== 'group') {
+      throw new Error('Can only remove participants from group chats');
+    }
+    
+    // Verify removedBy is an admin (or user is removing themselves)
+    if (userId !== removedBy && !conversationData.admins?.includes(removedBy)) {
+      throw new Error('Only admins can remove other participants');
+    }
+    
+    // Remove participant
+    await updateDoc(conversationRef, {
+      participantIds: arrayRemove(userId),
+      updatedAt: serverTimestamp(),
+    });
+    
+    console.log(`✅ Removed participant ${userId} from group ${conversationId}`);
+  } catch (error) {
+    console.error('Error removing participant:', error);
+    throw new Error(error.message || 'Failed to remove participant');
+  }
+}
+
+/**
+ * Get all participants of a group chat with their profiles
+ * @param {string} conversationId - Conversation ID
+ * @returns {Promise<Array>} Array of participant profile objects
+ */
+export async function getGroupParticipants(conversationId) {
+  try {
+    const conversationRef = doc(db, 'conversations', conversationId);
+    const conversationSnap = await getDoc(conversationRef);
+    
+    if (!conversationSnap.exists()) {
+      throw new Error('Conversation not found');
+    }
+    
+    const conversationData = conversationSnap.data();
+    
+    if (conversationData.type !== 'group') {
+      throw new Error('Not a group conversation');
+    }
+    
+    // Fetch all participant profiles
+    const participants = await Promise.all(
+      conversationData.participantIds.map(async (userId) => {
+        try {
+          const profile = await getUserProfile(userId);
+          return profile;
+        } catch (err) {
+          console.error(`Failed to fetch profile for ${userId}:`, err);
+          return null;
+        }
+      })
+    );
+    
+    // Filter out null values (failed fetches)
+    return participants.filter(p => p !== null);
+  } catch (error) {
+    console.error('Error getting group participants:', error);
+    throw new Error(error.message || 'Failed to get group participants');
+  }
+}
+
+/**
+ * Update group information (name, photo)
+ * @param {string} conversationId - Conversation ID
+ * @param {Object} updates - Fields to update (groupName, groupPhoto)
+ * @param {string} updatedBy - ID of user making the update
+ * @returns {Promise<void>}
+ */
+export async function updateGroupInfo(conversationId, updates, updatedBy) {
+  try {
+    const conversationRef = doc(db, 'conversations', conversationId);
+    
+    // Get current conversation
+    const conversationSnap = await getDoc(conversationRef);
+    if (!conversationSnap.exists()) {
+      throw new Error('Conversation not found');
+    }
+    
+    const conversationData = conversationSnap.data();
+    
+    // Verify it's a group chat
+    if (conversationData.type !== 'group') {
+      throw new Error('Can only update group chats');
+    }
+    
+    // Verify updatedBy is an admin
+    if (!conversationData.admins?.includes(updatedBy)) {
+      throw new Error('Only admins can update group information');
+    }
+    
+    // Prepare update object
+    const updateData = {
+      updatedAt: serverTimestamp(),
+    };
+    
+    if (updates.groupName !== undefined) {
+      updateData.groupName = updates.groupName.trim();
+    }
+    
+    if (updates.groupPhoto !== undefined) {
+      updateData.groupPhoto = updates.groupPhoto;
+    }
+    
+    await updateDoc(conversationRef, updateData);
+    
+    console.log(`✅ Updated group info for ${conversationId}`);
+  } catch (error) {
+    console.error('Error updating group info:', error);
+    throw new Error(error.message || 'Failed to update group info');
+  }
+}
+
+/**
+ * Make a user an admin in a group chat
+ * @param {string} conversationId - Conversation ID
+ * @param {string} userId - User ID to make admin
+ * @param {string} promotedBy - ID of user making this change
+ * @returns {Promise<void>}
+ */
+export async function makeGroupAdmin(conversationId, userId, promotedBy) {
+  try {
+    const conversationRef = doc(db, 'conversations', conversationId);
+    
+    // Get current conversation
+    const conversationSnap = await getDoc(conversationRef);
+    if (!conversationSnap.exists()) {
+      throw new Error('Conversation not found');
+    }
+    
+    const conversationData = conversationSnap.data();
+    
+    // Verify it's a group chat
+    if (conversationData.type !== 'group') {
+      throw new Error('Can only manage admins in group chats');
+    }
+    
+    // Verify promotedBy is an admin
+    if (!conversationData.admins?.includes(promotedBy)) {
+      throw new Error('Only admins can promote other members');
+    }
+    
+    // Verify user is a participant
+    if (!conversationData.participantIds.includes(userId)) {
+      throw new Error('User must be a participant to become an admin');
+    }
+    
+    // Add to admins array
+    await updateDoc(conversationRef, {
+      admins: arrayUnion(userId),
+      updatedAt: serverTimestamp(),
+    });
+    
+    console.log(`✅ Made ${userId} an admin in group ${conversationId}`);
+  } catch (error) {
+    console.error('Error making user admin:', error);
+    throw new Error(error.message || 'Failed to make user admin');
+  }
+}
+

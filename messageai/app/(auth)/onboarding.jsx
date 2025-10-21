@@ -14,6 +14,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Input } from '../../components/ui/Input';
@@ -30,7 +31,7 @@ export default function OnboardingScreen() {
   const [generalError, setGeneralError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { user, completeProfile } = useAuth();
+  const { user, completeProfile, refreshProfile } = useAuth();
   const { pickImage, takePhoto, loading: imageLoading } = useImagePicker();
   const router = useRouter();
 
@@ -88,6 +89,10 @@ export default function OnboardingScreen() {
         displayName: displayName.trim(),
         profilePictureUri,
       });
+      
+      // Refresh the profile to trigger navigation
+      await refreshProfile();
+      
       // Navigation will be handled automatically by AuthContext
     } catch (error) {
       setGeneralError(error.message || 'Setup failed. Please try again.');
