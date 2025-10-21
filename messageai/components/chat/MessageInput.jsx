@@ -18,17 +18,29 @@ import {
 /**
  * @param {Object} props
  * @param {Function} props.onSend - Callback when send button is pressed
+ * @param {Function} [props.onTextChange] - Callback when text changes (for typing indicators)
  * @param {boolean} [props.disabled=false] - Whether input is disabled
  * @param {string} [props.placeholder='Type a message...'] - Input placeholder
  */
-export function MessageInput({ onSend, disabled = false, placeholder = 'Type a message...' }) {
+export function MessageInput({ onSend, onTextChange, disabled = false, placeholder = 'Type a message...' }) {
   const [text, setText] = useState('');
+
+  const handleTextChange = (newText) => {
+    setText(newText);
+    if (onTextChange) {
+      onTextChange(newText);
+    }
+  };
 
   const handleSend = () => {
     const trimmedText = text.trim();
     if (trimmedText && !disabled) {
       onSend(trimmedText);
       setText('');
+      // Notify that text is now empty (stops typing indicator)
+      if (onTextChange) {
+        onTextChange('');
+      }
     }
   };
 
@@ -42,7 +54,7 @@ export function MessageInput({ onSend, disabled = false, placeholder = 'Type a m
           <TextInput
             style={styles.input}
             value={text}
-            onChangeText={setText}
+            onChangeText={handleTextChange}
             placeholder={placeholder}
             placeholderTextColor="#999999"
             multiline

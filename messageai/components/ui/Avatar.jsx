@@ -11,7 +11,9 @@ export function Avatar({
   uri, 
   displayName = '', 
   size = 50,
-  style 
+  style,
+  showOnlineBadge = false,
+  isOnline = false
 }) {
   // Get initials from display name
   const getInitials = (name) => {
@@ -24,6 +26,7 @@ export function Avatar({
   };
 
   const initials = getInitials(displayName);
+  const badgeSize = size * 0.3;
 
   return (
     <View style={[styles.container, { width: size, height: size }, style]}>
@@ -39,6 +42,19 @@ export function Avatar({
           </Text>
         </View>
       )}
+      
+      {/* Online Status Badge */}
+      {showOnlineBadge && isOnline && (
+        <View style={[
+          styles.onlineBadge,
+          {
+            width: badgeSize,
+            height: badgeSize,
+            borderRadius: badgeSize / 2,
+            borderWidth: size > 40 ? 2 : 1.5,
+          }
+        ]} />
+      )}
     </View>
   );
 }
@@ -47,6 +63,7 @@ const styles = StyleSheet.create({
   container: {
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
   },
   image: {
     backgroundColor: '#E0E0E0',
@@ -59,6 +76,13 @@ const styles = StyleSheet.create({
   initials: {
     color: '#FFFFFF',
     fontWeight: '600',
+  },
+  onlineBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#4CAF50',
+    borderColor: '#FFFFFF',
   },
 });
 

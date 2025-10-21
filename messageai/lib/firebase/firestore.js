@@ -9,6 +9,7 @@ import {
   setDoc,
   getDoc,
   updateDoc,
+  deleteDoc,
   collection,
   query,
   where,
@@ -742,6 +743,83 @@ export async function deleteMessage(conversationId, messageId) {
   } catch (error) {
     console.error('Error deleting message:', error);
     throw new Error('Failed to delete message');
+  }
+}
+
+// ============================================================================
+// TYPING INDICATORS
+// ============================================================================
+
+/**
+ * Set typing status for a user in a conversation
+ * @param {string} conversationId - Conversation ID
+ * @param {string} userId - User ID
+ * @param {boolean} isTyping - Whether user is typing
+ * @returns {Promise<void>}
+ */
+export async function setTypingStatus(conversationId, userId, isTyping) {
+  try {
+    const typingRef = doc(db, 'typing', `${conversationId}_${userId}`);
+    
+    if (isTyping) {
+      await setDoc(typingRef, {
+        conversationId,
+        userId,
+        isTyping: true,
+        timestamp: serverTimestamp(),
+      });
+    } else {
+      // Delete the typing indicator when user stops typing
+      await deleteDoc(typingRef);
+    }
+  } catch (error) {
+    // Silently fail for "not-found" errors when deleting non-existent documents
+    if (error.code !== 'not-found') {
+      console.error('Error setting typing status:', error);
+    }
+    // Don't throw - typing indicators are non-critical
+  }
+}
+
+/**
+ * Subscribe to typing indicators in a conversation
+ * @param {string} conversationId - Conversation ID
+ * @param {string} currentUserId - Current user's ID (to exclude own typing)
+ * @param {Function} callback - Callback function with typing users array
+ * @returns {Function} Unsubscribe function
+ */
+export function subscribeToTyping(conversationId, currentUserId, callback) {
+  try {
+    const typingQuery = query(
+      collection(db, 'typing'),
+      where('conversationId', '==', conversationId),
+      where('isTyping', '==', true)
+    );
+    
+    const unsubscribe = onSnapshot(typingQuery, (snapshot) => {
+      const typingUsers = [];
+      
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        // Exclude current user and check if typing is recent (within 5 seconds)
+        if (data.userId !== currentUserId && data.timestamp) {
+          const timeDiff = Date.now() - data.timestamp.toMillis();
+          if (timeDiff < 5000) { // Only show if within last 5 seconds
+            typingUsers.push(data.userId);
+          }
+        }
+      });
+      
+      callback(typingUsers);
+    }, (error) => {
+      console.error('Error listening to typing indicators:', error);
+      callback([]);
+    });
+    
+    return unsubscribe;
+  } catch (error) {
+    console.error('Error subscribing to typing indicators:', error);
+    return () => {}; // Return empty unsubscribe function
   }
 }
 

@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useContext, useState } from 'react';
-import { Slot, useRouter, useSegments } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { AuthProvider, AuthContext } from '../lib/context/AuthContext';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { initializeDatabase } from '../lib/database/schema';
@@ -42,7 +42,26 @@ function NavigationGuard() {
     return <LoadingSpinner fullScreen message="Loading..." />;
   }
 
-  return <Slot />;
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        animation: 'slide_from_right',
+      }}
+    >
+      <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen 
+        name="chat/[id]" 
+        options={{ 
+          headerShown: true,
+          headerBackTitle: 'Back',
+          presentation: 'card',
+        }} 
+      />
+    </Stack>
+  );
 }
 
 export default function RootLayout() {

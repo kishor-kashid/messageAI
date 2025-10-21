@@ -4,7 +4,7 @@
  * One-on-one chat interface with real-time messaging
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -17,11 +17,17 @@ import {
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useAuth } from '../../lib/hooks/useAuth';
 import { useMessages } from '../../lib/hooks/useMessages';
-import { getConversationById, resetUnreadCount } from '../../lib/firebase/firestore';
-import { getUserProfile } from '../../lib/firebase/firestore';
+import {
+  getConversationById,
+  resetUnreadCount,
+  setTypingStatus,
+  subscribeToTyping,
+  getUserProfile,
+} from '../../lib/firebase/firestore';
 import { MessageList } from '../../components/chat/MessageList';
 import { MessageInput } from '../../components/chat/MessageInput';
 import { ConversationHeader } from '../../components/conversations/ConversationHeader';
+import { TypingIndicator } from '../../components/chat/TypingIndicator';
 
 export default function ChatScreen() {
   const { id: conversationId } = useLocalSearchParams();
@@ -31,6 +37,7 @@ export default function ChatScreen() {
   const [conversation, setConversation] = useState(null);
   const [otherParticipant, setOtherParticipant] = useState(null);
   const [loadingConversation, setLoadingConversation] = useState(true);
+  const [typingUserIds, setTypingUserIds] = useState([]);
   
   const {
     messages,
@@ -40,6 +47,9 @@ export default function ChatScreen() {
     sendMessage,
     markAsRead,
   } = useMessages(conversationId);
+
+  // Typing timeout ref
+  const typingTimeoutRef = useRef(null);
 
   // Load conversation details
   useEffect(() => {
@@ -79,6 +89,19 @@ export default function ChatScreen() {
     loadConversation();
   }, [conversationId, user, router]);
 
+  // Subscribe to typing indicators
+  useEffect(() => {
+    if (!conversationId || !user) return;
+
+    const unsubscribe = subscribeToTyping(conversationId, user.uid, (typingUsers) => {
+      setTypingUserIds(typingUsers);
+    });
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [conversationId, user]);
+
   // Mark messages as read and reset unread count whenever in the chat
   useEffect(() => {
     if (!conversationId || !user) return;
@@ -107,14 +130,58 @@ export default function ChatScreen() {
     markMessagesAsReadAndResetCount();
   }, [messages, conversationId, user, markAsRead]);
 
+  // Handle text input change (typing indicator)
+  const handleTextChange = useCallback((text) => {
+    if (!conversationId || !user) return;
+
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // Set typing status to true if user is typing
+    if (text.length > 0) {
+      setTypingStatus(conversationId, user.uid, true);
+
+      // Clear typing status after 3 seconds of inactivity
+      typingTimeoutRef.current = setTimeout(() => {
+        setTypingStatus(conversationId, user.uid, false);
+      }, 3000);
+    } else {
+      // Clear typing status immediately if input is empty
+      setTypingStatus(conversationId, user.uid, false);
+    }
+  }, [conversationId, user]);
+
   const handleSendMessage = async (text) => {
     try {
+      // Clear typing status when sending
+      if (user && conversationId) {
+        setTypingStatus(conversationId, user.uid, false);
+        if (typingTimeoutRef.current) {
+          clearTimeout(typingTimeoutRef.current);
+        }
+      }
+
       await sendMessage(text);
     } catch (err) {
       console.error('Error sending message:', err);
       Alert.alert('Error', 'Failed to send message. Please try again.');
     }
   };
+
+  // Cleanup typing timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      // Clear typing status on unmount
+      if (user && conversationId) {
+        setTypingStatus(conversationId, user.uid, false);
+      }
+    };
+  }, [user, conversationId]);
 
   if (loadingConversation) {
     return (
@@ -136,6 +203,10 @@ export default function ChatScreen() {
             />
           ),
           headerBackTitle: 'Back',
+          headerStyle: {
+            backgroundColor: '#FFFFFF',
+          },
+          headerShadowVisible: true,
         }}
       />
       
@@ -150,8 +221,17 @@ export default function ChatScreen() {
           loading={loadingMessages}
         />
         
+        {/* Typing Indicator */}
+        <TypingIndicator
+          typingUserIds={typingUserIds}
+          participants={{
+            [otherParticipant?.id]: otherParticipant,
+          }}
+        />
+        
         <MessageInput
           onSend={handleSendMessage}
+          onTextChange={handleTextChange}
           disabled={sending}
           placeholder="Type a message..."
         />
