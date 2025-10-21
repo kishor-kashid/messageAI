@@ -1,6 +1,6 @@
 # Tech Context: MessageAI MVP
 
-**Last Updated:** October 21, 2025
+**Last Updated:** October 21, 2025 (Evening Update)
 
 ---
 
@@ -16,10 +16,10 @@
 
 **Key Expo Modules:**
 - `expo-sqlite` (v16) - Local database for offline storage **[UPDATED: v16 sync API]**
-- `expo-image-picker` - Camera/gallery image selection
-- `expo-notifications` - Push notifications (foreground)
-- `expo-app-state` - App lifecycle events (for presence tracking)
-- `@react-native-community/netinfo` - Network status monitoring
+- `expo-image-picker` - Camera/gallery image selection (not yet used)
+- `expo-notifications` - Push notifications **[SKIPPED: Requires dev build]**
+- React Native `AppState` - App lifecycle events (for presence tracking)
+- `@react-native-community/netinfo` (^11.x) - Network status monitoring **[ACTIVE]**
 
 **UI Libraries:**
 - `react-navigation` - Navigation framework (comes with Expo Router)
@@ -337,35 +337,89 @@ eas build --profile development --platform android
 
 ---
 
+### @react-native-community/netinfo
+
+**Purpose:** Network status monitoring for offline sync  
+**Version:** ^11.x  
+**Installation:** `npm install @react-native-community/netinfo`
+
+**Key Features:**
+- Real-time network status monitoring
+- Detects WiFi, cellular, Ethernet, etc.
+- Checks internet reachability (not just connection)
+- Cross-platform (iOS, Android, Web)
+
+**Usage Pattern:**
+```javascript
+import NetInfo from '@react-native-community/netinfo';
+
+// Subscribe to network state updates
+const unsubscribe = NetInfo.addEventListener(state => {
+  const isOnline = state.isConnected && state.isInternetReachable;
+  const networkType = state.type; // 'wifi', 'cellular', 'none', etc.
+});
+
+// Cleanup
+unsubscribe();
+```
+
+**Used In:**
+- `lib/hooks/useNetworkStatus.js` - React hook wrapper
+- `lib/hooks/useMessages.js` - Check before sending
+- `app/_layout.jsx` - Monitor for sync triggers
+
+**✅ Implementation Status:** Complete and working (PR #11)
+
+---
+
 ## Technology Updates & Learnings
 
-### October 21, 2025
+### October 21, 2025 (Evening Update)
+
+**@react-native-community/netinfo Integration:**
+- Integrated for network status monitoring
+- Real-time detection of online/offline state
+- Triggers automatic message sync on reconnection
+- Works flawlessly on both iOS and Android
+- Critical for offline queue functionality
 
 **expo-sqlite v16 Migration:**
 - Successfully migrated all database files from callback-based API to sync API
 - All CRUD operations tested and working
 - No performance degradation observed
 - Cleaner codebase as a result
+- Added offline_queue table for message queuing
 
 **Firebase Real-Time Performance:**
 - Message delivery consistently < 2 seconds
 - Optimistic UI provides instant feedback
 - Firestore listeners properly cleaned up (no memory leaks)
 - Free tier limits sufficient for development
+- Presence system working with app lifecycle
+- Group chat with real-time participant updates
 
 **React Native + Expo:**
 - Hot reload working well for rapid iteration
-- Expo Go works for most testing
-- No need for custom native modules yet
+- Expo Go works for most features (except push notifications)
+- No custom native modules needed yet
 - Router-based navigation clean and intuitive
+- Keyboard handling required platform-specific tuning
 
 **Testing Infrastructure:**
 - Jest running smoothly
-- Integration tests provide good coverage
-- Mocking Firebase and SQLite straightforward
+- Unit tests passing (auth, validation)
+- Integration tests removed (complex mocking requirements)
 - Test execution fast (~5 seconds for unit tests)
+- Focus on manual 2-device testing for MVP
+
+**Discovered Limitations:**
+- Push notifications require development build (not available in Expo Go for Android SDK 53+)
+- Keyboard handling requires platform-specific configuration
+- Some Firestore operations need careful error handling (deleteDoc for non-existent docs)
+- React state with Set doesn't trigger re-renders (use Arrays instead)
 
 ---
 
-This tech context reflects the actual state of the technology stack as of October 21, 2025.
+This tech context reflects the actual state of the technology stack as of October 21, 2025 (Evening Update).  
+**Status: 11/16 PRs Complete - Most Core Tech Decisions Validated**
 

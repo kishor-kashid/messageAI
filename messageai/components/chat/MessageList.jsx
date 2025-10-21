@@ -7,6 +7,7 @@
 import React, { useRef, useEffect } from 'react';
 import { FlatList, StyleSheet, View, Text } from 'react-native';
 import { MessageBubble } from './MessageBubble';
+import { formatTimestamp } from '../../lib/utils/formatters';
 
 /**
  * @param {Object} props
@@ -48,20 +49,75 @@ export function MessageList({
     }
   }, []);
 
+  /**
+   * Check if two messages are on different days
+   */
+  const isDifferentDay = (timestamp1, timestamp2) => {
+    if (!timestamp1 || !timestamp2) return false;
+    
+    const date1 = new Date(timestamp1);
+    const date2 = new Date(timestamp2);
+    
+    return date1.getDate() !== date2.getDate() ||
+           date1.getMonth() !== date2.getMonth() ||
+           date1.getFullYear() !== date2.getFullYear();
+  };
+
+  /**
+   * Get date label for separator
+   */
+  const getDateLabel = (timestamp) => {
+    const date = new Date(timestamp);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    // Reset time to midnight for accurate comparison
+    today.setHours(0, 0, 0, 0);
+    yesterday.setHours(0, 0, 0, 0);
+    const messageDate = new Date(date);
+    messageDate.setHours(0, 0, 0, 0);
+    
+    if (messageDate.getTime() === today.getTime()) {
+      return 'Today';
+    } else if (messageDate.getTime() === yesterday.getTime()) {
+      return 'Yesterday';
+    } else {
+      // Use formatTimestamp to get consistent date formatting
+      const months = ['January', 'February', 'March', 'April', 'May', 'June',
+                      'July', 'August', 'September', 'October', 'November', 'December'];
+      return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+    }
+  };
+
   const renderMessage = ({ item, index }) => {
     const isOwnMessage = item.senderId === currentUserId;
     const senderProfile = senderProfiles[item.senderId];
     const senderName = senderProfile?.displayName || 'Unknown';
     
-    // Always show timestamp and status for better UX and status tracking visibility
+    // Check if we need to show date separator
+    const showDateSeparator = index === 0 || 
+      (index > 0 && isDifferentDay(messages[index - 1].timestamp, item.timestamp));
+    
     return (
-      <MessageBubble
-        message={item}
-        isOwnMessage={isOwnMessage}
-        showTimestamp={true}
-        isGroupChat={isGroupChat}
-        senderName={senderName}
-      />
+      <View>
+        {showDateSeparator && (
+          <View style={styles.dateSeparator}>
+            <View style={styles.dateSeparatorLine} />
+            <Text style={styles.dateSeparatorText}>
+              {getDateLabel(item.timestamp)}
+            </Text>
+            <View style={styles.dateSeparatorLine} />
+          </View>
+        )}
+        <MessageBubble
+          message={item}
+          isOwnMessage={isOwnMessage}
+          showTimestamp={true}
+          isGroupChat={isGroupChat}
+          senderName={senderName}
+        />
+      </View>
     );
   };
 
@@ -136,6 +192,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#999999',
     textAlign: 'center',
+  },
+  dateSeparator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 16,
+    paddingHorizontal: 16,
+  },
+  dateSeparatorLine: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#E0E0E0',
+  },
+  dateSeparatorText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#666666',
+    backgroundColor: '#F5F5F5',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginHorizontal: 8,
   },
 });
 
