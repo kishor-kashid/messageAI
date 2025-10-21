@@ -13,17 +13,23 @@ import { Avatar } from '../ui/Avatar';
  * @param {Object} props.conversation - Conversation object
  * @param {string} props.conversation.type - 'direct' or 'group'
  * @param {string} [props.conversation.groupName] - Group name (for group chats)
- * @param {Object} [props.conversation.otherParticipant] - Other participant (for direct chats)
+ * @param {Object} [props.participant] - Other participant (for direct chats), passed separately
  * @param {Function} [props.onPress] - Callback when header is tapped (e.g., view profile)
  * @param {Function} [props.onBackPress] - Callback for back button
  */
-export function ConversationHeader({ conversation, onPress, onBackPress }) {
+export function ConversationHeader({ conversation, participant, onPress, onBackPress }) {
+  if (!conversation) {
+    return null;
+  }
+
   const {
     type,
     groupName,
-    otherParticipant,
     participantIds = [],
   } = conversation;
+
+  // Use participant prop or fall back to conversation.otherParticipant
+  const otherParticipant = participant || conversation.otherParticipant;
 
   // Get display name and status
   const displayName = type === 'group' 
@@ -31,7 +37,7 @@ export function ConversationHeader({ conversation, onPress, onBackPress }) {
     : otherParticipant?.displayName || 'Unknown';
     
   const avatarUri = type === 'group'
-    ? null
+    ? conversation.groupPhoto || null
     : otherParticipant?.profilePicture;
     
   const isOnline = type === 'direct' && otherParticipant?.isOnline;
@@ -85,8 +91,8 @@ export function ConversationHeader({ conversation, onPress, onBackPress }) {
       >
         <Avatar
           uri={avatarUri}
-          name={displayName}
-          size={36}
+          displayName={displayName}
+          size={40}
           showOnlineBadge={type === 'direct'}
           isOnline={isOnline}
         />
@@ -116,12 +122,11 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 4,
     backgroundColor: '#FFFFFF',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E0E0E0',
-    minHeight: 56,
+    minHeight: 60,
+    width: '100%',
   },
   backButton: {
     width: 40,
@@ -139,10 +144,12 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 4,
   },
   textContainer: {
     flex: 1,
-    marginLeft: 10,
+    marginLeft: 12,
+    justifyContent: 'center',
   },
   name: {
     fontSize: 17,

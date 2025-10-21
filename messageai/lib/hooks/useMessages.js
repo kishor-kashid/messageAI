@@ -94,6 +94,7 @@ export function useMessages(conversationId) {
     }
 
     let unsubscribe = null;
+    const currentUserId = user.uid; // Capture user ID to avoid stale closure
 
     async function initializeMessages() {
       try {
@@ -123,7 +124,7 @@ export function useMessages(conversationId) {
           
           // Mark received messages as delivered (only once per message)
           const undeliveredMessages = firestoreMessages.filter(
-            msg => msg.senderId !== user.uid && 
+            msg => msg.senderId !== currentUserId && 
                    msg.status === 'sent' && 
                    !deliveredMessages.current.has(msg.id)
           );
@@ -159,7 +160,7 @@ export function useMessages(conversationId) {
         unsubscribe();
       }
     };
-  }, [conversationId, user]);
+  }, [conversationId, user, updateMessages]);
 
   /**
    * Send a message with optimistic UI update
