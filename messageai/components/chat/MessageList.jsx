@@ -86,6 +86,7 @@ export function MessageList({
   return (
     <FlatList
       ref={flatListRef}
+      style={styles.container}
       data={messages}
       renderItem={renderMessage}
       keyExtractor={(item) => item.id}
@@ -104,6 +105,9 @@ export function MessageList({
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
   listContent: {
     paddingVertical: 8,
   },

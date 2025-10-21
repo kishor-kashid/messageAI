@@ -11,12 +11,16 @@ import { AuthProvider, AuthContext } from '../lib/context/AuthContext';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { initializeDatabase } from '../lib/database/schema';
 import { setOnline, setOffline } from '../lib/firebase/presence';
+import { useNetworkStatus } from '../lib/hooks/useNetworkStatus';
+import { syncQueuedMessages, isSyncNeeded } from '../lib/sync/messageSync';
 
 function NavigationGuard() {
   const { user, userProfile, loading } = useContext(AuthContext);
   const segments = useSegments();
   const router = useRouter();
   const appState = useRef(AppState.currentState);
+  const { isOnline } = useNetworkStatus();
+  const previousOnlineStatus = useRef(isOnline);
 
   // Handle navigation based on auth state
   useEffect(() => {
@@ -94,6 +98,32 @@ function NavigationGuard() {
       setUserOffline();
     };
   }, [user?.uid]);
+
+  // Sync queued messages when coming back online
+  useEffect(() => {
+    const handleOnlineStatusChange = async () => {
+      // Check if we just came online
+      if (isOnline && !previousOnlineStatus.current) {
+        console.log('✅ Back online - checking for queued messages');
+        
+        const needsSync = await isSyncNeeded();
+        if (needsSync) {
+          console.log('📤 Syncing queued messages...');
+          try {
+            const result = await syncQueuedMessages();
+            console.log(`📊 Sync result: ${result.success} success, ${result.failed} failed, ${result.remaining} remaining`);
+          } catch (error) {
+            console.error('Error syncing queued messages:', error);
+          }
+        }
+      }
+      
+      // Update previous status
+      previousOnlineStatus.current = isOnline;
+    };
+
+    handleOnlineStatusChange();
+  }, [isOnline]);
 
   if (loading) {
     return <LoadingSpinner fullScreen message="Loading..." />;

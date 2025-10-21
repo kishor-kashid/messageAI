@@ -13,6 +13,7 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  SafeAreaView,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useAuth } from '../../lib/hooks/useAuth';
@@ -225,7 +226,7 @@ export default function ChatScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <Stack.Screen
         options={{
           headerShown: true,
@@ -245,24 +246,26 @@ export default function ChatScreen() {
       
       <KeyboardAvoidingView
         style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        behavior='padding'
+        keyboardVerticalOffset={90}
       >
-        <MessageList
-          messages={messages}
-          currentUserId={user?.uid}
-          loading={loadingMessages}
-          isGroupChat={conversation?.type === 'group'}
-          senderProfiles={senderProfiles}
-        />
-        
-        {/* Typing Indicator */}
-        <TypingIndicator
-          typingUserIds={typingUserIds}
-          participants={{
-            [otherParticipant?.id]: otherParticipant,
-          }}
-        />
+        <View style={styles.messagesContainer}>
+          <MessageList
+            messages={messages}
+            currentUserId={user?.uid}
+            loading={loadingMessages}
+            isGroupChat={conversation?.type === 'group'}
+            senderProfiles={senderProfiles}
+          />
+          
+          {/* Typing Indicator */}
+          <TypingIndicator
+            typingUserIds={typingUserIds}
+            participants={{
+              [otherParticipant?.id]: otherParticipant,
+            }}
+          />
+        </View>
         
         <MessageInput
           onSend={handleSendMessage}
@@ -277,7 +280,7 @@ export default function ChatScreen() {
           <Text style={styles.errorText}>Error loading messages</Text>
         </View>
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -293,6 +296,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   keyboardView: {
+    flex: 1,
+  },
+  messagesContainer: {
     flex: 1,
   },
   errorBanner: {
