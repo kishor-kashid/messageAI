@@ -118,7 +118,14 @@ export default function ConversationsScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Messages</Text>
-        {/* Future: Add compose button to start new conversation */}
+        
+        {/* Create Group Button */}
+        <TouchableOpacity
+          style={styles.createGroupButton}
+          onPress={() => router.push('/group/create')}
+        >
+          <Text style={styles.createGroupIcon}>👥+</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Conversation List */}
@@ -159,6 +166,17 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '700',
     color: '#000000',
+  },
+  createGroupButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  createGroupIcon: {
+    fontSize: 20,
   },
   centerContainer: {
     flex: 1,

@@ -11,7 +11,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 
@@ -45,42 +44,37 @@ export function MessageInput({ onSend, onTextChange, disabled = false, placehold
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-    >
-      <View style={styles.container}>
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            value={text}
-            onChangeText={handleTextChange}
-            placeholder={placeholder}
-            placeholderTextColor="#999999"
-            multiline
-            maxLength={1000}
-            editable={!disabled}
-            returnKeyType="default"
-          />
-          
-          <TouchableOpacity
-            style={[
-              styles.sendButton,
-              (!text.trim() || disabled) && styles.sendButtonDisabled
-            ]}
-            onPress={handleSend}
-            disabled={!text.trim() || disabled}
-          >
-            <Text style={[
-              styles.sendButtonText,
-              (!text.trim() || disabled) && styles.sendButtonTextDisabled
-            ]}>
-              ↑
-            </Text>
-          </TouchableOpacity>
-        </View>
+    <View style={styles.container}>
+      <View style={styles.inputContainer}>
+        <TextInput
+          style={styles.input}
+          value={text}
+          onChangeText={handleTextChange}
+          placeholder={placeholder}
+          placeholderTextColor="#999999"
+          multiline
+          maxLength={1000}
+          editable={!disabled}
+          returnKeyType="default"
+        />
+        
+        <TouchableOpacity
+          style={[
+            styles.sendButton,
+            (!text.trim() || disabled) && styles.sendButtonDisabled
+          ]}
+          onPress={handleSend}
+          disabled={!text.trim() || disabled}
+        >
+          <Text style={[
+            styles.sendButtonText,
+            (!text.trim() || disabled) && styles.sendButtonTextDisabled
+          ]}>
+            ↑
+          </Text>
+        </TouchableOpacity>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 

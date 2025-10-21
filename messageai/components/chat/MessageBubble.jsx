@@ -57,8 +57,16 @@ function getStatusIcon(status) {
  * @param {string} props.message.senderId - Sender user ID
  * @param {boolean} props.isOwnMessage - Whether message is from current user
  * @param {boolean} [props.showTimestamp=true] - Whether to show timestamp
+ * @param {boolean} [props.isGroupChat=false] - Whether this is a group chat
+ * @param {string} [props.senderName] - Name of the sender (for group chats)
  */
-export function MessageBubble({ message, isOwnMessage, showTimestamp = true }) {
+export function MessageBubble({ 
+  message, 
+  isOwnMessage, 
+  showTimestamp = true,
+  isGroupChat = false,
+  senderName = null,
+}) {
   const { content, timestamp, status = 'sent' } = message;
 
   return (
@@ -66,38 +74,45 @@ export function MessageBubble({ message, isOwnMessage, showTimestamp = true }) {
       styles.container,
       isOwnMessage ? styles.ownMessageContainer : styles.otherMessageContainer
     ]}>
-      <View style={[
-        styles.bubble,
-        isOwnMessage ? styles.ownBubble : styles.otherBubble,
-        status === 'failed' && styles.failedBubble
-      ]}>
-        <Text style={[
-          styles.messageText,
-          isOwnMessage ? styles.ownMessageText : styles.otherMessageText
-        ]}>
-          {content}
-        </Text>
-        
-        {showTimestamp && timestamp && (
-          <View style={styles.footer}>
-            <Text style={[
-              styles.timestamp,
-              isOwnMessage ? styles.ownTimestamp : styles.otherTimestamp
-            ]}>
-              {formatTime(timestamp)}
-            </Text>
-            
-            {isOwnMessage && status && (
-              <Text style={[
-                styles.statusIcon,
-                status === 'read' && styles.statusIconRead,
-                status === 'failed' && styles.statusIconFailed
-              ]}>
-                {getStatusIcon(status)}
-              </Text>
-            )}
-          </View>
+      <View style={styles.messageWrapper}>
+        {/* Show sender name for group chats (only for received messages) */}
+        {isGroupChat && !isOwnMessage && senderName && (
+          <Text style={styles.senderName}>{senderName}</Text>
         )}
+        
+        <View style={[
+          styles.bubble,
+          isOwnMessage ? styles.ownBubble : styles.otherBubble,
+          status === 'failed' && styles.failedBubble
+        ]}>
+          <Text style={[
+            styles.messageText,
+            isOwnMessage ? styles.ownMessageText : styles.otherMessageText
+          ]}>
+            {content}
+          </Text>
+          
+          {showTimestamp && timestamp && (
+            <View style={styles.footer}>
+              <Text style={[
+                styles.timestamp,
+                isOwnMessage ? styles.ownTimestamp : styles.otherTimestamp
+              ]}>
+                {formatTime(timestamp)}
+              </Text>
+              
+              {isOwnMessage && status && (
+                <Text style={[
+                  styles.statusIcon,
+                  status === 'read' && styles.statusIconRead,
+                  status === 'failed' && styles.statusIconFailed
+                ]}>
+                  {getStatusIcon(status)}
+                </Text>
+              )}
+            </View>
+          )}
+        </View>
       </View>
     </View>
   );
@@ -115,8 +130,17 @@ const styles = StyleSheet.create({
   otherMessageContainer: {
     justifyContent: 'flex-start',
   },
-  bubble: {
+  messageWrapper: {
     maxWidth: '75%',
+  },
+  senderName: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#007AFF',
+    marginBottom: 2,
+    marginLeft: 12,
+  },
+  bubble: {
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 18,

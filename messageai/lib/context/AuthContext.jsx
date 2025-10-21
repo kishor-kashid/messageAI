@@ -13,6 +13,7 @@ export const AuthContext = createContext({
   userProfile: null,
   loading: true,
   error: null,
+  refreshProfile: () => {},
 });
 
 export function AuthProvider({ children }) {
@@ -20,6 +21,19 @@ export function AuthProvider({ children }) {
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Function to manually refresh user profile
+  const refreshProfile = async () => {
+    if (user) {
+      try {
+        const profile = await getUserProfile(user.uid);
+        setUserProfile(profile);
+      } catch (err) {
+        console.error('Error refreshing profile:', err);
+        setError(err.message);
+      }
+    }
+  };
 
   useEffect(() => {
     // Subscribe to auth state changes
@@ -54,6 +68,7 @@ export function AuthProvider({ children }) {
     userProfile,
     loading,
     error,
+    refreshProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
