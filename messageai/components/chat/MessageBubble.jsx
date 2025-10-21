@@ -34,6 +34,8 @@ function getStatusIcon(status) {
   switch (status) {
     case 'sending':
       return '○'; // Empty circle
+    case 'queued':
+      return '⏳'; // Hourglass
     case 'sent':
       return '✓'; // Single check
     case 'delivered':
@@ -44,6 +46,22 @@ function getStatusIcon(status) {
       return '⚠'; // Warning
     default:
       return '';
+  }
+}
+
+/**
+ * Get status text for queued messages
+ * @param {string} status - Message status
+ * @returns {string|null} Status text
+ */
+function getStatusText(status) {
+  switch (status) {
+    case 'queued':
+      return 'Waiting to send...';
+    case 'failed':
+      return 'Failed to send';
+    default:
+      return null;
   }
 }
 
@@ -83,7 +101,8 @@ export function MessageBubble({
         <View style={[
           styles.bubble,
           isOwnMessage ? styles.ownBubble : styles.otherBubble,
-          status === 'failed' && styles.failedBubble
+          status === 'failed' && styles.failedBubble,
+          status === 'queued' && styles.queuedBubble
         ]}>
           <Text style={[
             styles.messageText,
@@ -91,6 +110,16 @@ export function MessageBubble({
           ]}>
             {content}
           </Text>
+          
+          {/* Show status text for queued/failed messages */}
+          {isOwnMessage && getStatusText(status) && (
+            <Text style={[
+              styles.statusText,
+              isOwnMessage ? styles.ownStatusText : styles.otherStatusText
+            ]}>
+              {getStatusText(status)}
+            </Text>
+          )}
           
           {showTimestamp && timestamp && (
             <View style={styles.footer}>
@@ -105,6 +134,7 @@ export function MessageBubble({
                 <Text style={[
                   styles.statusIcon,
                   status === 'read' && styles.statusIconRead,
+                  status === 'queued' && styles.statusIconQueued,
                   status === 'failed' && styles.statusIconFailed
                 ]}>
                   {getStatusIcon(status)}
@@ -157,9 +187,25 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF3B30',
     opacity: 0.7,
   },
+  queuedBubble: {
+    backgroundColor: '#FFA500',
+    opacity: 0.8,
+  },
   messageText: {
     fontSize: 16,
     lineHeight: 20,
+  },
+  statusText: {
+    fontSize: 11,
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  ownStatusText: {
+    color: '#FFFFFF',
+    opacity: 0.9,
+  },
+  otherStatusText: {
+    color: '#666666',
   },
   ownMessageText: {
     color: '#FFFFFF',
@@ -193,6 +239,10 @@ const styles = StyleSheet.create({
   },
   statusIconRead: {
     color: '#34C759',
+    opacity: 1,
+  },
+  statusIconQueued: {
+    color: '#FFA500',
     opacity: 1,
   },
   statusIconFailed: {

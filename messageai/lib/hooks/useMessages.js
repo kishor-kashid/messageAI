@@ -19,6 +19,8 @@ import {
   updateMessageStatus as updateLocalMessageStatus,
   bulkSaveMessages,
 } from '../database/messages';
+import { addToQueue, getQueuedMessagesForConversation } from '../sync/offlineQueue';
+import { checkIsOnline } from './useNetworkStatus';
 
 /**
  * Custom hook for message management in a conversation
@@ -189,6 +191,7 @@ export function useMessages(conversationId) {
       timestamp: Date.now(),
       status: 'sending',
       metadata: null,
+      tempId: optimisticId,
     };
 
     try {
@@ -199,7 +202,25 @@ export function useMessages(conversationId) {
       // 2. Save to local database
       await saveMessage(optimisticMessage);
 
-      // 3. Send to Firestore
+      // 3. Check network status
+      const isOnline = await checkIsOnline();
+
+      if (!isOnline) {
+        // If offline, add to queue and update status
+        console.log('📴 Offline - queueing message');
+        await addToQueue(optimisticMessage);
+        
+        // Update message status to queued
+        const queuedMessage = { ...optimisticMessage, status: 'queued' };
+        optimisticMessages.current.set(optimisticId, queuedMessage);
+        await updateLocalMessageStatus(optimisticId, 'queued');
+        updateMessages();
+        
+        setSending(false);
+        return queuedMessage;
+      }
+
+      // 4. If online, send to Firestore
       const sentMessage = await sendFirestoreMessage({
         conversationId,
         senderId: user.uid,
@@ -207,10 +228,10 @@ export function useMessages(conversationId) {
         type: 'text',
       });
 
-      // 4. Remove optimistic message (Firestore subscription will add real one)
+      // 5. Remove optimistic message (Firestore subscription will add real one)
       optimisticMessages.current.delete(optimisticId);
 
-      // 5. Update local database with real message
+      // 6. Update local database with real message
       await saveMessage(sentMessage);
 
       setSending(false);
@@ -218,7 +239,26 @@ export function useMessages(conversationId) {
     } catch (err) {
       console.error('Error sending message:', err);
       
-      // Mark optimistic message as failed
+      // Check if it's a network error
+      const isNetworkError = err.message?.includes('network') || 
+                             err.code === 'unavailable' ||
+                             err.code === 'failed-precondition';
+      
+      if (isNetworkError) {
+        // Queue the message for later
+        console.log('📴 Network error - queueing message');
+        await addToQueue(optimisticMessage);
+        
+        const queuedMessage = { ...optimisticMessage, status: 'queued' };
+        optimisticMessages.current.set(optimisticId, queuedMessage);
+        await updateLocalMessageStatus(optimisticId, 'queued');
+        updateMessages();
+        
+        setSending(false);
+        return queuedMessage;
+      }
+      
+      // Mark optimistic message as failed for other errors
       const failedMessage = { ...optimisticMessage, status: 'failed' };
       optimisticMessages.current.set(optimisticId, failedMessage);
       updateMessages(); // Update UI with failed status
