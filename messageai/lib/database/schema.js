@@ -127,6 +127,33 @@ export async function initializeDatabase() {
        ON contacts(email);`
     );
 
+    // Offline queue table
+    db.execSync(
+      `CREATE TABLE IF NOT EXISTS offline_queue (
+        id TEXT PRIMARY KEY,
+        conversationId TEXT NOT NULL,
+        senderId TEXT NOT NULL,
+        content TEXT NOT NULL,
+        timestamp INTEGER NOT NULL,
+        tempId TEXT NOT NULL,
+        retryCount INTEGER DEFAULT 0,
+        lastRetryAt INTEGER,
+        error TEXT,
+        createdAt INTEGER NOT NULL
+      );`
+    );
+
+    // Index for offline queue
+    db.execSync(
+      `CREATE INDEX IF NOT EXISTS idx_offline_queue_timestamp 
+       ON offline_queue(timestamp);`
+    );
+
+    db.execSync(
+      `CREATE INDEX IF NOT EXISTS idx_offline_queue_conversation 
+       ON offline_queue(conversationId);`
+    );
+
     console.log('✅ Database initialized successfully');
   } catch (error) {
     console.error('❌ Database initialization error:', error);
@@ -152,6 +179,7 @@ export async function dropAllTables() {
     db.execSync('DROP TABLE IF EXISTS messages;');
     db.execSync('DROP TABLE IF EXISTS conversations;');
     db.execSync('DROP TABLE IF EXISTS contacts;');
+    db.execSync('DROP TABLE IF EXISTS offline_queue;');
     console.log('✅ All tables dropped');
   } catch (error) {
     console.error('❌ Error dropping tables:', error);
@@ -177,6 +205,7 @@ export async function clearAllData() {
     db.execSync('DELETE FROM messages;');
     db.execSync('DELETE FROM conversations;');
     db.execSync('DELETE FROM contacts;');
+    db.execSync('DELETE FROM offline_queue;');
     console.log('✅ All data cleared');
   } catch (error) {
     console.error('❌ Error clearing data:', error);

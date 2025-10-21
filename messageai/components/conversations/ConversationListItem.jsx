@@ -1,7 +1,8 @@
 /**
  * Conversation List Item Component
  * 
- * Displays a single conversation with avatar, name, last message preview, timestamp, and unread count
+ * Displays a single conversation with avatar, name, last message preview, timestamp, and unread count.
+ * Note: Online status badge has been removed from the conversation list.
  */
 
 import React from 'react';
@@ -67,11 +68,10 @@ export function ConversationListItem({
     ? groupName || 'Group Chat'
     : otherParticipant?.displayName || 'Unknown';
     
+  // Support group photos from conversation.groupPhoto
   const avatarUri = type === 'group'
-    ? null // Could add group avatar support
+    ? conversation.groupPhoto || null
     : otherParticipant?.profilePicture;
-    
-  const isOnline = type === 'direct' && otherParticipant?.isOnline;
 
   return (
     <TouchableOpacity
@@ -83,11 +83,17 @@ export function ConversationListItem({
       <View style={styles.avatarContainer}>
         <Avatar
           uri={avatarUri}
-          name={displayName}
+          displayName={displayName}
           size={56}
-          showOnlineBadge={type === 'direct'}
-          isOnline={isOnline}
+          showOnlineBadge={false}
+          isOnline={false}
         />
+        {/* Group icon indicator */}
+        {type === 'group' && (
+          <View style={styles.groupBadge}>
+            <Text style={styles.groupIcon}>👥</Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.contentContainer}>
@@ -138,6 +144,23 @@ const styles = StyleSheet.create({
   },
   avatarContainer: {
     marginRight: 12,
+    position: 'relative',
+  },
+  groupBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  groupIcon: {
+    fontSize: 10,
   },
   contentContainer: {
     flex: 1,
