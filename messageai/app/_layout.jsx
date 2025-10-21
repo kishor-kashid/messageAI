@@ -4,10 +4,11 @@
  * Handles navigation and authentication state
  */
 
-import { useEffect, useContext } from 'react';
-import { Slot, useRouter, useSegments } from 'expo-router';
+import { useEffect, useContext, useState } from 'react';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { AuthProvider, AuthContext } from '../lib/context/AuthContext';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
+import { initializeDatabase } from '../lib/database/schema';
 
 function NavigationGuard() {
   const { user, userProfile, loading } = useContext(AuthContext);
@@ -41,10 +42,51 @@ function NavigationGuard() {
     return <LoadingSpinner fullScreen message="Loading..." />;
   }
 
-  return <Slot />;
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        animation: 'slide_from_right',
+      }}
+    >
+      <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen 
+        name="chat/[id]" 
+        options={{ 
+          headerShown: true,
+          headerBackTitle: 'Back',
+          presentation: 'card',
+        }} 
+      />
+    </Stack>
+  );
 }
 
 export default function RootLayout() {
+  const [dbInitialized, setDbInitialized] = useState(false);
+
+  useEffect(() => {
+    // Initialize database on app start
+    const initDb = async () => {
+      try {
+        await initializeDatabase();
+        setDbInitialized(true);
+      } catch (error) {
+        console.error('Failed to initialize database:', error);
+        // Still allow app to continue even if db init fails
+        setDbInitialized(true);
+      }
+    };
+
+    initDb();
+  }, []);
+
+  if (!dbInitialized) {
+    return <LoadingSpinner fullScreen message="Initializing..." />;
+  }
+
   return (
     <AuthProvider>
       <NavigationGuard />
