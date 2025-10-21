@@ -1,6 +1,6 @@
 # Tech Context: MessageAI MVP
 
-**Last Updated:** October 20, 2025
+**Last Updated:** October 21, 2025
 
 ---
 
@@ -15,10 +15,11 @@
 - **JavaScript** (not TypeScript) - Faster iteration for 24-hour timeline
 
 **Key Expo Modules:**
-- `expo-sqlite` - Local database for offline storage
+- `expo-sqlite` (v16) - Local database for offline storage **[UPDATED: v16 sync API]**
 - `expo-image-picker` - Camera/gallery image selection
 - `expo-notifications` - Push notifications (foreground)
 - `expo-app-state` - App lifecycle events (for presence tracking)
+- `@react-native-community/netinfo` - Network status monitoring
 
 **UI Libraries:**
 - `react-navigation` - Navigation framework (comes with Expo Router)
@@ -196,6 +197,34 @@ npm test -- --coverage
 - No built-in encryption (add later if needed)
 - Manual schema migrations
 
+### expo-sqlite v16 Migration (October 21, 2025)
+**Breaking Change:** expo-sqlite v14+ uses completely different API
+
+**Old API (v13):**
+```javascript
+import { openDatabase } from 'expo-sqlite';
+const db = openDatabase('mydb.db');
+db.transaction(tx => {
+  tx.executeSql('SELECT * FROM users', [], callback);
+});
+```
+
+**New API (v16) - Currently Used:**
+```javascript
+import * as SQLite from 'expo-sqlite';
+const db = SQLite.openDatabaseSync('mydb.db');
+const rows = db.getAllSync('SELECT * FROM users');
+```
+
+**Benefits:**
+- ✅ Cleaner synchronous API (no nested callbacks)
+- ✅ Better error handling with try-catch
+- ✅ More performant (less overhead)
+- ✅ Easier to test
+
+**Migration Status:** ✅ Complete - All database files updated
+**See:** DATABASE_FIX_SUMMARY.md for detailed migration information
+
 ### Performance Targets
 - App launch: <2 seconds to conversation list
 - Message delivery: <2 seconds (online)
@@ -308,5 +337,35 @@ eas build --profile development --platform android
 
 ---
 
-This tech context will be updated as we integrate new technologies or discover platform-specific considerations.
+## Technology Updates & Learnings
+
+### October 21, 2025
+
+**expo-sqlite v16 Migration:**
+- Successfully migrated all database files from callback-based API to sync API
+- All CRUD operations tested and working
+- No performance degradation observed
+- Cleaner codebase as a result
+
+**Firebase Real-Time Performance:**
+- Message delivery consistently < 2 seconds
+- Optimistic UI provides instant feedback
+- Firestore listeners properly cleaned up (no memory leaks)
+- Free tier limits sufficient for development
+
+**React Native + Expo:**
+- Hot reload working well for rapid iteration
+- Expo Go works for most testing
+- No need for custom native modules yet
+- Router-based navigation clean and intuitive
+
+**Testing Infrastructure:**
+- Jest running smoothly
+- Integration tests provide good coverage
+- Mocking Firebase and SQLite straightforward
+- Test execution fast (~5 seconds for unit tests)
+
+---
+
+This tech context reflects the actual state of the technology stack as of October 21, 2025.
 

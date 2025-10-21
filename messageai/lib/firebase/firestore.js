@@ -17,6 +17,8 @@ import {
   arrayUnion,
   arrayRemove,
   serverTimestamp,
+  orderBy,
+  limit,
 } from 'firebase/firestore';
 import { db } from './config';
 
@@ -296,6 +298,12 @@ export async function createConversation(participantIds, type = 'direct', groupN
     const conversationsRef = collection(db, 'conversations');
     const newConversationRef = doc(conversationsRef);
     
+    // Initialize unread count object for each participant
+    const unreadCount = {};
+    participantIds.forEach(id => {
+      unreadCount[id] = 0;
+    });
+    
     const conversationData = {
       id: newConversationRef.id,
       participantIds,
@@ -303,6 +311,7 @@ export async function createConversation(participantIds, type = 'direct', groupN
       groupName: groupName || null,
       lastMessage: null,
       lastMessageTimestamp: null,
+      unreadCount, // Track unread count per user
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
@@ -500,6 +509,239 @@ export async function deleteConversation(conversationId) {
   } catch (error) {
     console.error('Error deleting conversation:', error);
     throw new Error('Failed to delete conversation');
+  }
+}
+
+// ============================================
+// MESSAGE MANAGEMENT FUNCTIONS
+// ============================================
+
+/**
+ * Send a message in a conversation
+ * @param {Object} messageData - Message data
+ * @param {string} messageData.conversationId - Conversation ID
+ * @param {string} messageData.senderId - Sender user ID
+ * @param {string} messageData.content - Message text content
+ * @param {string} [messageData.type='text'] - Message type
+ * @returns {Promise<Object>} Created message object
+ */
+export async function sendMessage(messageData) {
+  try {
+    const { conversationId, senderId, content, type = 'text' } = messageData;
+
+    if (!content || content.trim() === '') {
+      throw new Error('Message content cannot be empty');
+    }
+
+    // Create message document
+    const messagesRef = collection(db, 'conversations', conversationId, 'messages');
+    const newMessageRef = doc(messagesRef);
+    
+    const timestamp = Date.now();
+    const message = {
+      id: newMessageRef.id,
+      conversationId,
+      senderId,
+      content: content.trim(),
+      type,
+      timestamp,
+      status: 'sent',
+      createdAt: serverTimestamp(),
+    };
+
+    await setDoc(newMessageRef, message);
+    
+    // Update conversation's last message
+    await updateConversationLastMessage(conversationId, content.trim(), timestamp);
+    
+    // Increment unread count for other participants
+    try {
+      const conversationRef = doc(db, 'conversations', conversationId);
+      const conversationSnap = await getDoc(conversationRef);
+      
+      if (conversationSnap.exists()) {
+        const conv = conversationSnap.data();
+        const updates = {};
+        
+        // Increment unread for all participants except sender
+        if (conv.participantIds) {
+          conv.participantIds.forEach(participantId => {
+            if (participantId !== senderId) {
+              const currentCount = conv.unreadCount?.[participantId] || 0;
+              updates[`unreadCount.${participantId}`] = currentCount + 1;
+            }
+          });
+          
+          if (Object.keys(updates).length > 0) {
+            await updateDoc(conversationRef, updates);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to update unread count:', err);
+      // Don't throw - message was sent successfully
+    }
+    
+    console.log(`✅ Message sent: ${newMessageRef.id}`);
+    return { ...message, id: newMessageRef.id };
+  } catch (error) {
+    console.error('Error sending message:', error);
+    throw new Error('Failed to send message');
+  }
+}
+
+/**
+ * Get messages for a conversation
+ * @param {string} conversationId - Conversation ID
+ * @param {number} [limit=50] - Number of messages to fetch
+ * @returns {Promise<Array>} Array of message objects
+ */
+export async function getMessages(conversationId, limit = 50) {
+  try {
+    const messagesRef = collection(db, 'conversations', conversationId, 'messages');
+    const q = query(
+      messagesRef,
+      orderBy('timestamp', 'desc'),
+      limit(limit)
+    );
+    
+    const querySnapshot = await getDocs(q);
+    const messages = [];
+    
+    querySnapshot.forEach((docSnap) => {
+      messages.push({ id: docSnap.id, ...docSnap.data() });
+    });
+    
+    // Reverse to show oldest first (chronological order)
+    messages.reverse();
+    
+    console.log(`✅ Fetched ${messages.length} messages`);
+    return messages;
+  } catch (error) {
+    console.error('Error getting messages:', error);
+    throw new Error('Failed to get messages');
+  }
+}
+
+/**
+ * Subscribe to real-time message updates for a conversation
+ * @param {string} conversationId - Conversation ID
+ * @param {Function} callback - Callback function to handle message updates
+ * @returns {Function} Unsubscribe function
+ */
+export function subscribeToMessages(conversationId, callback) {
+  try {
+    const messagesRef = collection(db, 'conversations', conversationId, 'messages');
+    const q = query(messagesRef, orderBy('timestamp', 'asc'));
+    
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const messages = [];
+      
+      querySnapshot.forEach((docSnap) => {
+        messages.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      
+      callback(messages);
+    }, (error) => {
+      console.error('Error subscribing to messages:', error);
+      callback([]);
+    });
+
+    return unsubscribe;
+  } catch (error) {
+    console.error('Error setting up message subscription:', error);
+    throw new Error('Failed to subscribe to messages');
+  }
+}
+
+/**
+ * Update message status
+ * @param {string} conversationId - Conversation ID
+ * @param {string} messageId - Message ID
+ * @param {string} status - New status ('sent', 'delivered', 'read')
+ * @returns {Promise<void>}
+ */
+export async function updateMessageStatus(conversationId, messageId, status) {
+  try {
+    const messageRef = doc(db, 'conversations', conversationId, 'messages', messageId);
+    await updateDoc(messageRef, {
+      status,
+      [`${status}At`]: serverTimestamp(),
+    });
+    
+    console.log(`✅ Message status updated: ${messageId} -> ${status}`);
+  } catch (error) {
+    console.error('Error updating message status:', error);
+    throw new Error('Failed to update message status');
+  }
+}
+
+/**
+ * Mark messages as read
+ * @param {string} conversationId - Conversation ID
+ * @param {Array<string>} messageIds - Array of message IDs to mark as read
+ * @returns {Promise<void>}
+ */
+export async function markMessagesAsRead(conversationId, messageIds) {
+  try {
+    const batch = [];
+    
+    for (const messageId of messageIds) {
+      const messageRef = doc(db, 'conversations', conversationId, 'messages', messageId);
+      batch.push(
+        updateDoc(messageRef, {
+          status: 'read',
+          readAt: serverTimestamp(),
+        })
+      );
+    }
+    
+    await Promise.all(batch);
+    console.log(`✅ Marked ${messageIds.length} messages as read`);
+  } catch (error) {
+    console.error('Error marking messages as read:', error);
+    throw new Error('Failed to mark messages as read');
+  }
+}
+
+/**
+ * Reset unread count for a user in a conversation
+ * @param {string} conversationId - Conversation ID
+ * @param {string} userId - User ID
+ * @returns {Promise<void>}
+ */
+export async function resetUnreadCount(conversationId, userId) {
+  try {
+    const conversationRef = doc(db, 'conversations', conversationId);
+    await updateDoc(conversationRef, {
+      [`unreadCount.${userId}`]: 0,
+    });
+    
+    console.log(`✅ Unread count reset for user ${userId} in conversation ${conversationId}`);
+  } catch (error) {
+    console.error('Error resetting unread count:', error);
+    throw new Error('Failed to reset unread count');
+  }
+}
+
+/**
+ * Delete a message
+ * @param {string} conversationId - Conversation ID
+ * @param {string} messageId - Message ID
+ * @returns {Promise<void>}
+ */
+export async function deleteMessage(conversationId, messageId) {
+  try {
+    const messageRef = doc(db, 'conversations', conversationId, 'messages', messageId);
+    await updateDoc(messageRef, {
+      deletedAt: serverTimestamp(),
+      content: '[Message deleted]',
+    });
+    
+    console.log(`✅ Message deleted: ${messageId}`);
+  } catch (error) {
+    console.error('Error deleting message:', error);
+    throw new Error('Failed to delete message');
   }
 }
 

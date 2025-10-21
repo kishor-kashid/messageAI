@@ -83,19 +83,8 @@ export default function ContactsScreen() {
       // Dismiss loading alert
       Alert.alert('', '', [], { cancelable: true });
       
-      // TODO: Navigate to chat screen (PR #6)
-      // router.push(`/chat/${conversation.id}`);
-      Alert.alert(
-        'Conversation Ready',
-        `Chat with ${contact.displayName} is ready!\n\nChat screen coming in PR #6`,
-        [
-          { text: 'OK' },
-          {
-            text: 'View Conversations',
-            onPress: () => router.push('/(tabs)/conversations'),
-          },
-        ]
-      );
+      // Navigate to chat screen
+      router.push(`/chat/${conversation.id}`);
     } catch (err) {
       Alert.alert('Error', err.message || 'Failed to create conversation');
     }

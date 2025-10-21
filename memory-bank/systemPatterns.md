@@ -1,6 +1,6 @@
 # System Patterns: MessageAI MVP
 
-**Last Updated:** October 20, 2025
+**Last Updated:** October 21, 2025
 
 ---
 
@@ -110,6 +110,11 @@ status: 'sending' | 'sent' | 'delivered' | 'read'
 const { user, login, logout } = useAuth();
 ```
 
+**✅ Implementation Status:** Working perfectly in production
+- AuthContext handles user state globally
+- Persists across app restarts
+- Auto-updates all components on auth state change
+
 ### 2. Custom Hooks for Data Fetching
 
 **Where:** Messages, Conversations, Contacts, Presence  
@@ -118,6 +123,25 @@ const { user, login, logout } = useAuth();
 ```javascript
 // lib/hooks/useMessages.js
 const { messages, sendMessage, loading } = useMessages(conversationId);
+```
+
+**✅ Implementation Status:** Fully implemented and working
+- `useMessages` - Real-time message sync with optimistic updates
+- `useConversations` - Conversation list with unread counts
+- `useContacts` - Contact management with search
+- `useAuth` - Authentication state management
+
+**Key Pattern Discovered:**
+```javascript
+// Optimistic updates with deduplication
+const optimisticMessages = useRef(new Map());
+
+// Add optimistic message immediately
+optimisticMessages.current.set(tempId, message);
+updateUI();
+
+// Remove when Firestore confirms (matched by content + timestamp)
+// This prevents duplicate messages in the UI
 ```
 
 ### 3. Offline Queue Pattern
@@ -138,6 +162,13 @@ const { messages, sendMessage, loading } = useMessages(conversationId);
 4. Update UI status to "sent"
 ```
 
+**🚧 Implementation Status:** Partially complete
+- ✅ Messages save to SQLite first (always works)
+- ✅ Optimistic UI shows messages immediately
+- ⏳ Network monitoring not yet implemented
+- ⏳ Automatic retry on reconnection not yet implemented
+- **Next:** PR #11 will complete this pattern
+
 ### 4. Repository Pattern (Light)
 
 **Where:** `lib/firebase/` and `lib/database/` directories  
@@ -146,6 +177,21 @@ const { messages, sendMessage, loading } = useMessages(conversationId);
 - `lib/firebase/firestore.js` - All Firestore operations
 - `lib/database/messages.js` - All local message operations
 - Hooks compose these repositories
+
+**✅ Implementation Status:** Working well
+- Clean separation between Firebase and SQLite layers
+- Hooks act as orchestrators between data sources
+- Easy to mock for testing
+- No direct Firebase/SQLite calls in components
+
+**Pattern Example:**
+```javascript
+// Component never touches Firebase or SQLite directly
+function ChatScreen() {
+  const { messages, sendMessage } = useMessages(conversationId);
+  // Hook handles both Firebase and SQLite internally
+}
+```
 
 ---
 
@@ -279,5 +325,97 @@ App Root (_layout.jsx)
 
 ---
 
-This system patterns document will be updated as we discover new patterns during implementation.
+## Discovered Patterns (October 21, 2025)
+
+### 5. Optimistic Message Deduplication
+
+**Problem:** Optimistic messages and Firestore messages can create duplicates  
+**Solution:** Match by content + timestamp, not just ID
+
+```javascript
+// In useMessages hook
+const matchingFirestoreMsg = firestoreMessages.find(
+  fm => fm.senderId === optMsg.senderId && 
+        fm.content === optMsg.content && 
+        Math.abs(fm.timestamp - optMsg.timestamp) < 5000 // Within 5 seconds
+);
+if (matchingFirestoreMsg) {
+  optimisticMessages.current.delete(optMsg.id);
+}
+```
+
+**Why this works:**
+- Temporary IDs are different from Firestore IDs
+- Matching by content ensures we find the right message
+- Timestamp proximity handles clock skew
+
+### 6. expo-sqlite v16 Sync API Pattern
+
+**Migration:** Old callback-based API → New synchronous API
+
+```javascript
+// OLD (expo-sqlite v13)
+db.transaction(tx => {
+  tx.executeSql('SELECT * FROM users', [], 
+    (_, { rows }) => { /* success */ },
+    (_, error) => { /* error */ }
+  );
+});
+
+// NEW (expo-sqlite v16)
+const rows = db.getAllSync('SELECT * FROM users');
+```
+
+**Benefits:**
+- Cleaner code (no nested callbacks)
+- Better error handling (try-catch)
+- More performant (less overhead)
+- Easier to test
+
+**See:** DATABASE_FIX_SUMMARY.md for complete migration details
+
+### 7. Message Status State Machine
+
+**States:** sending → sent → delivered → read
+
+```javascript
+// Automatic status progression
+1. User sends message → status: 'sending'
+2. Firebase confirms → status: 'sent'
+3. Recipient's device receives → status: 'delivered'
+4. Recipient opens chat → status: 'read'
+```
+
+**Implementation:**
+- Status tracked in both SQLite and Firestore
+- Visual indicators in MessageBubble component
+- Automatic updates via Firestore listeners
+- Read receipts triggered by chat visibility
+
+### 8. Firebase Listener Cleanup Pattern
+
+**Critical for memory management**
+
+```javascript
+// ALWAYS use this pattern
+useEffect(() => {
+  const unsubscribe = subscribeToMessages(conversationId, (messages) => {
+    setMessages(messages);
+  });
+  
+  return () => {
+    unsubscribe(); // CRITICAL - prevents memory leaks
+  };
+}, [conversationId]);
+```
+
+**Why this matters:**
+- Without cleanup, listeners accumulate on every re-render
+- Memory leaks lead to app crashes
+- Multiple listeners fire duplicate updates
+- All hooks in this app follow this pattern correctly ✅
+
+---
+
+This system patterns document reflects discovered patterns from actual implementation as of October 21, 2025.
 

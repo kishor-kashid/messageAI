@@ -61,6 +61,9 @@ export function useConversations() {
           // Enrich conversations with participant details
           const enrichedConversations = await Promise.all(
             firestoreConversations.map(async (conv) => {
+              // Extract user-specific unread count
+              const userUnreadCount = conv.unreadCount?.[user.uid] || 0;
+              
               // Get other participant details for direct chats
               if (conv.type === 'direct') {
                 const otherParticipantId = conv.participantIds.find(id => id !== user.uid);
@@ -70,13 +73,17 @@ export function useConversations() {
                     return {
                       ...conv,
                       otherParticipant: participantProfile,
+                      unreadCount: userUnreadCount, // User-specific count
                     };
                   } catch (err) {
                     console.error('Error fetching participant:', err);
                   }
                 }
               }
-              return conv;
+              return {
+                ...conv,
+                unreadCount: userUnreadCount, // User-specific count
+              };
             })
           );
 
