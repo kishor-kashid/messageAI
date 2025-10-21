@@ -66,7 +66,8 @@ export async function initializeDatabase() {
         id TEXT PRIMARY KEY,
         conversationId TEXT NOT NULL,
         senderId TEXT NOT NULL,
-        content TEXT NOT NULL,
+        content TEXT,
+        imageUrl TEXT,
         timestamp INTEGER NOT NULL,
         status TEXT NOT NULL,
         type TEXT DEFAULT 'text',
@@ -76,6 +77,20 @@ export async function initializeDatabase() {
         FOREIGN KEY (conversationId) REFERENCES conversations(id) ON DELETE CASCADE
       );`
     );
+
+    // Migration: Add imageUrl column if it doesn't exist (for existing databases)
+    try {
+      db.execSync(`ALTER TABLE messages ADD COLUMN imageUrl TEXT;`);
+      console.log('✅ Added imageUrl column to messages table');
+    } catch (err) {
+      // Column already exists or other error - safe to ignore
+      if (!err.message.includes('duplicate column')) {
+        console.warn('⚠️ Could not add imageUrl column:', err.message);
+      }
+    }
+
+    // Migration: Make content nullable (for existing databases with image-only messages)
+    // Note: SQLite doesn't support ALTER COLUMN, so this is handled by the new table definition above
 
     // Index for faster queries
     db.execSync(

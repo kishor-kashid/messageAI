@@ -2,10 +2,11 @@
  * Message Bubble Component
  * 
  * Displays a single message with different styles for sent vs received messages
+ * Supports text, images, or both
  */
 
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
 
 /**
  * Format timestamp to time string
@@ -69,7 +70,8 @@ function getStatusText(status) {
  * @param {Object} props
  * @param {Object} props.message - Message object
  * @param {string} props.message.id - Message ID
- * @param {string} props.message.content - Message text
+ * @param {string} [props.message.content] - Message text
+ * @param {string} [props.message.imageUrl] - Image URL
  * @param {number} props.message.timestamp - Message timestamp
  * @param {string} props.message.status - Message status
  * @param {string} props.message.senderId - Sender user ID
@@ -77,6 +79,7 @@ function getStatusText(status) {
  * @param {boolean} [props.showTimestamp=true] - Whether to show timestamp
  * @param {boolean} [props.isGroupChat=false] - Whether this is a group chat
  * @param {string} [props.senderName] - Name of the sender (for group chats)
+ * @param {Function} [props.onImagePress] - Callback when image is pressed
  */
 export function MessageBubble({ 
   message, 
@@ -84,8 +87,14 @@ export function MessageBubble({
   showTimestamp = true,
   isGroupChat = false,
   senderName = null,
+  onImagePress,
 }) {
-  const { content, timestamp, status = 'sent' } = message;
+  const { content, imageUrl, timestamp, status = 'sent' } = message;
+  const [imageLoading, setImageLoading] = useState(true);
+  const [imageError, setImageError] = useState(false);
+  
+  const hasImage = !!imageUrl;
+  const hasText = !!content;
 
   return (
     <View style={[
@@ -102,14 +111,61 @@ export function MessageBubble({
           styles.bubble,
           isOwnMessage ? styles.ownBubble : styles.otherBubble,
           status === 'failed' && styles.failedBubble,
-          status === 'queued' && styles.queuedBubble
+          status === 'queued' && styles.queuedBubble,
+          hasImage && styles.imageBubble
         ]}>
-          <Text style={[
-            styles.messageText,
-            isOwnMessage ? styles.ownMessageText : styles.otherMessageText
-          ]}>
-            {content}
-          </Text>
+          {/* Image */}
+          {hasImage && (
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => onImagePress?.(imageUrl)}
+              disabled={!onImagePress}
+            >
+              <View style={styles.imageContainer}>
+                {imageLoading && !imageError && (
+                  <View style={styles.imageLoadingContainer}>
+                    <ActivityIndicator size="small" color={isOwnMessage ? '#FFFFFF' : '#007AFF'} />
+                  </View>
+                )}
+                {imageError && (
+                  <View style={styles.imageErrorContainer}>
+                    <Text style={styles.imageErrorIcon}>⚠️</Text>
+                    <Text style={[
+                      styles.imageErrorText,
+                      isOwnMessage ? styles.ownMessageText : styles.otherMessageText
+                    ]}>
+                      Failed to load image
+                    </Text>
+                  </View>
+                )}
+                <Image
+                  source={{ uri: imageUrl }}
+                  style={styles.messageImage}
+                  resizeMode="cover"
+                  onLoadStart={() => {
+                    setImageLoading(true);
+                    setImageError(false);
+                  }}
+                  onLoad={() => setImageLoading(false)}
+                  onError={() => {
+                    setImageLoading(false);
+                    setImageError(true);
+                  }}
+                />
+              </View>
+            </TouchableOpacity>
+          )}
+          
+          {/* Text content */}
+          {hasText && (
+            <Text style={[
+              styles.messageText,
+              isOwnMessage ? styles.ownMessageText : styles.otherMessageText,
+              hasImage && styles.messageTextWithImage
+            ]}>
+              {content}
+            </Text>
+          )}
           
           {/* Show status text for queued/failed messages */}
           {isOwnMessage && getStatusText(status) && (
@@ -248,6 +304,54 @@ const styles = StyleSheet.create({
   statusIconFailed: {
     color: '#FF3B30',
     opacity: 1,
+  },
+  imageBubble: {
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+  },
+  imageContainer: {
+    position: 'relative',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  messageImage: {
+    width: 200,
+    height: 200,
+    borderRadius: 12,
+  },
+  imageLoadingContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    zIndex: 1,
+  },
+  imageErrorContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    zIndex: 1,
+  },
+  imageErrorIcon: {
+    fontSize: 32,
+    marginBottom: 4,
+  },
+  imageErrorText: {
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  messageTextWithImage: {
+    marginTop: 8,
+    paddingHorizontal: 8,
   },
 });
 

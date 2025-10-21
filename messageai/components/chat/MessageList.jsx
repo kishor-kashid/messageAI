@@ -4,9 +4,10 @@
  * Renders a scrollable list of messages with auto-scroll to bottom
  */
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { FlatList, StyleSheet, View, Text } from 'react-native';
 import { MessageBubble } from './MessageBubble';
+import { ImagePreview } from './ImagePreview';
 import { formatTimestamp } from '../../lib/utils/formatters';
 
 /**
@@ -28,6 +29,18 @@ export function MessageList({
 }) {
   const flatListRef = useRef(null);
   const previousMessageCount = useRef(messages.length);
+  const [imagePreviewVisible, setImagePreviewVisible] = useState(false);
+  const [selectedImageUrl, setSelectedImageUrl] = useState(null);
+
+  const handleImagePress = (imageUrl) => {
+    setSelectedImageUrl(imageUrl);
+    setImagePreviewVisible(true);
+  };
+
+  const handleClosePreview = () => {
+    setImagePreviewVisible(false);
+    setSelectedImageUrl(null);
+  };
 
   // Auto-scroll to bottom when new message arrives
   useEffect(() => {
@@ -116,6 +129,7 @@ export function MessageList({
           showTimestamp={true}
           isGroupChat={isGroupChat}
           senderName={senderName}
+          onImagePress={handleImagePress}
         />
       </View>
     );
@@ -140,23 +154,32 @@ export function MessageList({
   };
 
   return (
-    <FlatList
-      ref={flatListRef}
-      style={styles.container}
-      data={messages}
-      renderItem={renderMessage}
-      keyExtractor={(item) => item.id}
-      contentContainerStyle={[
-        styles.listContent,
-        messages.length === 0 && styles.emptyListContent
-      ]}
-      ListEmptyComponent={renderEmpty}
-      onEndReached={onLoadMore}
-      onEndReachedThreshold={0.5}
-      maintainVisibleContentPosition={{
-        minIndexForVisible: 0,
-      }}
-    />
+    <>
+      <FlatList
+        ref={flatListRef}
+        style={styles.container}
+        data={messages}
+        renderItem={renderMessage}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={[
+          styles.listContent,
+          messages.length === 0 && styles.emptyListContent
+        ]}
+        ListEmptyComponent={renderEmpty}
+        onEndReached={onLoadMore}
+        onEndReachedThreshold={0.5}
+        maintainVisibleContentPosition={{
+          minIndexForVisible: 0,
+        }}
+      />
+      
+      {/* Image Preview Modal */}
+      <ImagePreview
+        visible={imagePreviewVisible}
+        imageUrl={selectedImageUrl}
+        onClose={handleClosePreview}
+      />
+    </>
   );
 }
 
