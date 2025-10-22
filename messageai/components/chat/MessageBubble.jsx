@@ -67,6 +67,44 @@ function getStatusText(status) {
 }
 
 /**
+ * Calculate WhatsApp-style status for group chats
+ * @param {Object} message - Message object
+ * @param {Object} conversation - Conversation object
+ * @param {string} currentUserId - Current user's ID
+ * @returns {string} Calculated status
+ */
+function calculateGroupStatus(message, conversation, currentUserId) {
+  if (!conversation || conversation.type !== 'group') {
+    return message.status || 'sent';
+  }
+  
+  const readBy = message.readBy || [];
+  const participantIds = conversation.participantIds || [];
+  
+  // Get all participants except the sender
+  const participantsExceptSender = participantIds.filter(id => id !== message.senderId);
+  
+  // If no one has read it yet, return base status
+  if (readBy.length === 0) {
+    return message.status || 'sent';
+  }
+  
+  // Check how many participants have read
+  const readCount = participantsExceptSender.filter(id => readBy.includes(id)).length;
+  const totalRecipients = participantsExceptSender.length;
+  
+  if (readCount === totalRecipients) {
+    // All participants have read
+    return 'read';
+  } else if (readCount > 0) {
+    // Some participants have read
+    return 'delivered';
+  }
+  
+  return message.status || 'sent';
+}
+
+/**
  * @param {Object} props
  * @param {Object} props.message - Message object
  * @param {string} props.message.id - Message ID
@@ -75,10 +113,13 @@ function getStatusText(status) {
  * @param {number} props.message.timestamp - Message timestamp
  * @param {string} props.message.status - Message status
  * @param {string} props.message.senderId - Sender user ID
+ * @param {Array<string>} [props.message.readBy] - Array of user IDs who have read the message
  * @param {boolean} props.isOwnMessage - Whether message is from current user
  * @param {boolean} [props.showTimestamp=true] - Whether to show timestamp
  * @param {boolean} [props.isGroupChat=false] - Whether this is a group chat
  * @param {string} [props.senderName] - Name of the sender (for group chats)
+ * @param {Object} [props.conversation] - Conversation object (for group read tracking)
+ * @param {string} [props.currentUserId] - Current user's ID (for group read tracking)
  * @param {Function} [props.onImagePress] - Callback when image is pressed
  */
 export function MessageBubble({ 
@@ -87,9 +128,16 @@ export function MessageBubble({
   showTimestamp = true,
   isGroupChat = false,
   senderName = null,
+  conversation = null,
+  currentUserId = null,
   onImagePress,
 }) {
-  const { content, imageUrl, timestamp, status = 'sent' } = message;
+  const { content, imageUrl, timestamp, status: rawStatus = 'sent' } = message;
+  
+  // Calculate actual status (WhatsApp-style for group chats)
+  const status = isOwnMessage && isGroupChat 
+    ? calculateGroupStatus(message, conversation, currentUserId)
+    : rawStatus;
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
   

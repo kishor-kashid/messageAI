@@ -20,7 +20,7 @@ const isSQLiteAvailable = Platform.OS !== 'web';
  * @param {string} contact.id - Unique contact ID (user ID)
  * @param {string} contact.email - Contact email
  * @param {string} contact.displayName - Contact display name
- * @param {string} [contact.profilePicture] - Profile picture URL
+ * @param {string} [contact.photoURL] - Profile picture URL
  * @param {number} [contact.lastSeen] - Last seen timestamp
  * @param {string} [contact.status] - User status message
  * @returns {Promise<void>}
@@ -35,7 +35,7 @@ export async function saveContact(contact) {
     id,
     email,
     displayName,
-    profilePicture = null,
+    photoURL = null,
     lastSeen = null,
     status = null,
   } = contact;
@@ -45,9 +45,9 @@ export async function saveContact(contact) {
   try {
     db.runSync(
       `INSERT OR REPLACE INTO contacts 
-       (id, email, displayName, profilePicture, lastSeen, status, updatedAt) 
+       (id, email, displayName, photoURL, lastSeen, status, updatedAt) 
        VALUES (?, ?, ?, ?, ?, ?, ?);`,
-      [id, email, displayName, profilePicture, lastSeen, status, now]
+      [id, email, displayName, photoURL, lastSeen, status, now]
     );
     console.log(`✅ Contact saved: ${displayName} (${email})`);
   } catch (error) {
@@ -180,9 +180,9 @@ export async function updateContact(contactId, updates) {
     fields.push('displayName = ?');
     values.push(updates.displayName);
   }
-  if (updates.profilePicture !== undefined) {
-    fields.push('profilePicture = ?');
-    values.push(updates.profilePicture);
+  if (updates.photoURL !== undefined) {
+    fields.push('photoURL = ?');
+    values.push(updates.photoURL);
   }
   if (updates.lastSeen !== undefined) {
     fields.push('lastSeen = ?');
@@ -275,16 +275,16 @@ export async function bulkSaveContacts(contacts) {
         id,
         email,
         displayName,
-        profilePicture = null,
+        photoURL = null,
         lastSeen = null,
         status = null,
       } = contact;
 
       db.runSync(
         `INSERT OR REPLACE INTO contacts 
-         (id, email, displayName, profilePicture, lastSeen, status, updatedAt) 
+         (id, email, displayName, photoURL, lastSeen, status, updatedAt) 
          VALUES (?, ?, ?, ?, ?, ?, ?);`,
-        [id, email, displayName, profilePicture, lastSeen, status, now]
+        [id, email, displayName, photoURL, lastSeen, status, now]
       );
     }
     
