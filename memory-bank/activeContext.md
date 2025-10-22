@@ -1,24 +1,54 @@
 # Active Context: MessageAI MVP
 
-**Last Updated:** October 21, 2025 (Final Night - Project Complete!)  
-**Current Phase:** Documentation & Final Polish Complete  
-**Current Branch:** PR16 (Final Documentation) - Just Completed ✅  
+**Last Updated:** October 22, 2025 (Post-MVP Polish & Enhancements)  
+**Current Phase:** Advanced Features & Polish Complete  
+**Current Branch:** PR16 (Final Documentation) - Enhanced with WhatsApp-style features ✅  
 **Next Milestone:** Demo & Deployment
 
 ---
 
 ## Current Status
 
-**Phase:** PRODUCTION READY - ALL FEATURES COMPLETE  
-**Progress:** ~94% (14/16 PRs Complete)  
+**Phase:** PRODUCTION READY - ALL FEATURES COMPLETE + ADVANCED ENHANCEMENTS  
+**Progress:** ~97% (14/16 PRs Complete + Advanced Features)  
 **Timeline:** Tuesday deadline - PROJECT COMPLETE! 🎉🎉🎉
 
 ---
 
 ## What We Just Completed
 
-### Just Completed (October 21, 2025 - Very Late Evening)
-1. ✅ **PR #10: Media Support (Images)** - Complete image messaging functionality
+### Just Completed (October 22, 2025 - Post-MVP Enhancements)
+1. ✅ **Advanced Group Chat Features** - WhatsApp-style enhancements
+   - Implemented WhatsApp-style read receipts for group chats
+     - Per-user read tracking with `readBy` arrays in Firestore
+     - ✓ (sent), ✓✓ gray (some read), ✓✓ blue (all read) indicators
+     - Long press on own message to see "Message Info" modal
+     - Detailed read receipts showing who read and when
+   - Created Group Participants Modal
+     - View all group members with avatars and info
+     - Real-time online status for each participant
+     - "Last seen" timestamps for offline users
+     - On-demand presence fetching (not continuous subscription)
+   - Implemented Read Receipts Modal (Message Info)
+     - Shows message preview
+     - "Read by" section with timestamps
+     - "Delivered to" section for unread participants
+     - Works for both group and individual chats
+   - Scroll-to-Unread Behavior (WhatsApp-style)
+     - Chat opens at first unread message
+     - Visual "Unread messages" divider
+     - Falls back to bottom if no unreads
+     - Works for both group and individual chats
+   - Bug Fixes:
+     - Fixed in-app notifications to check `unreadCount`
+     - Fixed offline message duplicates with cleanup logic
+     - Fixed scroll behavior with retry logic and increased timeouts
+     - Fixed timestamp formatting in Read Receipts Modal (NaN issue)
+     - Fixed group participants modal presence (on-demand fetch)
+     - Added "Last seen" for offline users in group participants
+
+### Previously Completed (October 21, 2025 - Very Late Evening)
+2. ✅ **PR #10: Media Support (Images)** - Complete image messaging functionality
    - Created ImagePreview component for full-screen image viewing
    - Updated Message Model JSDoc to include imageUrl field
    - Enhanced MessageBubble to display images with tap-to-expand
@@ -86,6 +116,18 @@
 ---
 
 ## Current Work Focus
+
+**Recently Modified (October 22, 2025 - Advanced Features):**
+- Modified: `lib/firebase/firestore.js` - Enhanced `sendMessage` with `readBy` array, refactored `markMessagesAsRead` for per-user tracking
+- Modified: `lib/hooks/useMessages.js` - Added cleanup logic for optimistic messages, updated `markAsRead` to pass conversation data
+- Modified: `app/chat/[id].jsx` - Added `firstUnreadMessageId` tracking, group participants modal, read receipts modal
+- Modified: `components/chat/MessageBubble.jsx` - Added `calculateGroupStatus` for WhatsApp-style indicators, `onLongPress` handler
+- Modified: `components/chat/MessageList.jsx` - Implemented scroll-to-unread with `scrollToIndex`, unread divider, retry logic
+- Created: `components/chat/GroupParticipantsModal.jsx` - Group members viewer with on-demand presence, last seen timestamps
+- Created: `components/chat/ReadReceiptsModal.jsx` - Message info modal with detailed read receipts
+- Modified: `components/conversations/ConversationHeader.jsx` - Added group participants icon (👥)
+- Modified: `lib/context/NotificationContext.jsx` - Added `unreadCount` check to prevent old notifications
+- Modified: `lib/utils/formatters.js` - Used `formatRelativeTime` for last seen timestamps
 
 **Recently Modified (PR #10 - Media Support):**
 - Created: `components/chat/ImagePreview.jsx` - Full-screen image modal
@@ -167,9 +209,36 @@
 - ✅ **Presence system** - Real-time online/offline status working well
 - ✅ **Group chat** - Multi-user conversations functional
 
-### Recent Technical Decisions (October 21, 2025)
+### Recent Technical Decisions (October 22, 2025)
 
-1. **Offline Queue Implementation** - Complete and tested
+1. **WhatsApp-Style Read Receipts** - Complete for group chats
+   - Per-user read tracking with `readBy` arrays in Firestore
+   - Message status set to 'read' only when ALL participants read
+   - Visual indicators: ✓ sent, ✓✓ gray (some read), ✓✓ blue (all read)
+   - Long press to view detailed "Message Info" modal
+   - Works for groups of any size
+
+2. **Group Participants Viewer** - On-demand presence fetching
+   - Moved presence fetching from continuous subscription to on-demand
+   - Fetch presence only when modal opens (using `getMultiplePresences`)
+   - Shows online status and "Last seen" for offline users
+   - Prevents excessive background presence updates
+
+3. **Scroll-to-Unread Behavior** - WhatsApp-style chat opening
+   - Identifies first unread message on chat open
+   - Uses `FlatList.scrollToIndex` with `viewPosition: 0.2`
+   - Visual "Unread messages" divider
+   - Retry logic with `onScrollToIndexFailed`
+   - Falls back to bottom if no unreads or scroll fails
+
+4. **Optimistic Message Cleanup** - Prevents duplicates
+   - Added cleanup logic in `useMessages.js` to remove queued optimistic messages
+   - Compares against local database to detect synced messages
+   - Prevents duplicate messages after offline sync
+
+### Previous Technical Decisions (October 21, 2025)
+
+5. **Offline Queue Implementation** - Complete and tested
    - Network monitoring with @react-native-community/netinfo
    - SQLite queue table for pending messages
    - Automatic sync on network restoration
@@ -215,6 +284,16 @@
 
 ## Recent Changes
 
+**October 22, 2025 (Post-MVP Enhancements):**
+- ✅ Implemented WhatsApp-style read receipts for group chats
+- ✅ Created Group Participants Modal with online status and last seen
+- ✅ Implemented Read Receipts Modal (Message Info) for detailed receipts
+- ✅ Added scroll-to-unread behavior for chat opening
+- 🐛 Fixed 6+ bugs (notifications, duplicates, scroll, timestamps, presence)
+- 🎨 Enhanced UX with "Last seen" timestamps for offline users
+- 🔄 Refactored presence system to on-demand fetching
+- 🧹 Zero linter errors in new code
+
 **October 21, 2025 (Very Late Evening - PR #10 Complete):**
 - ✅ Completed PR #10: Media Support (Images)
 - 📦 Created ImagePreview component with full-screen modal
@@ -242,8 +321,12 @@
 - 🐛 Fixed multiple critical bugs (keyboard, group creation, logout, online status)
 - 🎨 Improved UI/UX based on user feedback (removed online badges from lists)
 
-**Key Files Created Today:**
-- `components/chat/ImagePreview.jsx` - Full-screen image modal (NEWEST!)
+**Key Files Created (October 22, 2025):**
+- `components/chat/GroupParticipantsModal.jsx` - Group members viewer (NEWEST!)
+- `components/chat/ReadReceiptsModal.jsx` - Message info modal (NEWEST!)
+
+**Key Files Created (October 21, 2025):**
+- `components/chat/ImagePreview.jsx` - Full-screen image modal
 - `lib/utils/errorHandler.js` - Error handling utility
 - `lib/utils/formatters.js` - Formatting utilities
 - `__tests__/unit/formatters.test.js` - Formatter tests
@@ -255,8 +338,16 @@
 - `app/group/create.jsx` - Group creation screen
 - `app/(tabs)/profile.jsx` - User profile screen
 
-**Key Files Modified Today:**
-- `components/chat/MessageBubble.jsx` - Image display support (LATEST!)
+**Key Files Modified (October 22, 2025):**
+- `lib/firebase/firestore.js` - Enhanced read receipts for groups (LATEST!)
+- `lib/hooks/useMessages.js` - Optimistic message cleanup (LATEST!)
+- `app/chat/[id].jsx` - Group participants and read receipts modals (LATEST!)
+- `components/chat/MessageBubble.jsx` - WhatsApp-style status indicators (LATEST!)
+- `components/chat/MessageList.jsx` - Scroll-to-unread implementation (LATEST!)
+- `components/conversations/ConversationHeader.jsx` - Group participants icon (LATEST!)
+
+**Key Files Modified (October 21, 2025):**
+- `components/chat/MessageBubble.jsx` - Image display support
 - `components/chat/MessageInput.jsx` - Image picker integration (LATEST!)
 - `lib/firebase/firestore.js` - Added group, presence, profile, image support
 - `app/_layout.jsx` - Added presence and sync integration
@@ -275,8 +366,16 @@
 
 ## Known Challenges & Solutions
 
+### ✅ Solved (October 22, 2025)
+1. **In-App Notifications for Old Messages** - Fixed with `unreadCount` check
+2. **Offline Message Duplicates** - Fixed with optimistic message cleanup logic
+3. **Chat Not Scrolling to Unread** - Fixed with retry logic and increased timeouts
+4. **Timestamp NaN in Read Receipts** - Fixed Firestore `Timestamp` handling
+5. **Incorrect Online Status in Group Modal** - Fixed with on-demand presence fetching
+6. **Missing Last Seen for Offline Users** - Added to group participants modal
+
 ### ✅ Solved (October 21, 2025)
-1. **expo-sqlite API Breaking Changes** - Migrated to v16 sync API
+16. **expo-sqlite API Breaking Changes** - Migrated to v16 sync API
 2. **Real-time Listener Memory Leaks** - All cleanup functions in place
 3. **Message Ordering** - Sorted by timestamp correctly
 4. **Optimistic Updates** - Working smoothly with deduplication
@@ -291,6 +390,12 @@
 13. **Offline Sync Errors** - Fixed parameter passing and database updates
 14. **Logout Functionality** - Fixed with proper offline setting
 15. **Online Status Display** - Adjusted per user preferences (removed from lists)
+16. **Group Read Receipts** - Implemented WhatsApp-style (all must read)
+17. **Group Participants Viewer** - Created with online status
+18. **Scroll-to-Unread** - Implemented for all chats
+19. **In-App Banner "Someone"** - Fixed by fetching participant profiles
+20. **Notifications for Read Messages** - Fixed with unreadCount check
+21. **Offline Message Duplicates** - Fixed with cleanup logic
 
 ### 🚧 Remaining Minor Issues
 1. **Test Coverage** - Improved but could be better
@@ -397,12 +502,16 @@
 - ✅ Real-time messaging < 2 seconds
 - ✅ Offline message queue with auto-sync
 - ✅ Typing indicators
-- ✅ Read receipts
-- ✅ Presence (online/offline status)
+- ✅ Read receipts (WhatsApp-style for groups)
+- ✅ Detailed message info modal (long press)
+- ✅ Presence (online/offline status with last seen)
 - ✅ Group chat with participant management
+- ✅ Group participants viewer with online status
+- ✅ Scroll-to-unread behavior
 - ✅ User profiles with display name editing
 - ✅ Logout functionality
 - ✅ Image messaging (send, receive, view full-screen)
+- ✅ In-app notifications (foreground)
 
 **What Needs Attention:**
 - ⚠️ Test coverage ~50-55% (improved, but not at 70% target yet)

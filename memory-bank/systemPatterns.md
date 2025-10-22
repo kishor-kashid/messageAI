@@ -1,6 +1,6 @@
 # System Patterns: MessageAI MVP
 
-**Last Updated:** October 21, 2025 (Evening Update)
+**Last Updated:** October 22, 2025 (Post-MVP Enhancements)
 
 ---
 
@@ -330,6 +330,255 @@ App Root (_layout.jsx)
 
 ---
 
+## Discovered Patterns (October 22, 2025)
+
+### 13. WhatsApp-Style Read Receipts for Groups
+
+**Problem:** Group chats need per-user read tracking, not binary read status  
+**Solution:** Track which users have read each message in a `readBy` array
+
+```javascript
+// Message schema in Firestore
+{
+  id: 'msg123',
+  conversationId: 'conv123',
+  senderId: 'user1',
+  content: 'Hello everyone!',
+  readBy: ['user1', 'user2'], // Array of user IDs who have read
+  status: 'delivered', // Set to 'read' only when ALL participants read
+  timestamp: timestamp
+}
+
+// markMessagesAsRead for groups
+async function markMessagesAsRead(conversationId, messageIds, userId, conversation) {
+  if (conversation.type === 'group') {
+    const messageRef = doc(db, 'conversations', conversationId, 'messages', messageId);
+    const messageSnap = await getDoc(messageRef);
+    const messageData = messageSnap.data();
+    const currentReadBy = messageData.readBy || [];
+    
+    if (!currentReadBy.includes(userId)) {
+      const updatedReadBy = [...currentReadBy, userId];
+      const participantsExceptSender = conversation.participantIds.filter(
+        id => id !== messageData.senderId
+      );
+      const allRead = participantsExceptSender.every(id => updatedReadBy.includes(id));
+      
+      const updateData = {
+        readBy: arrayUnion(userId), // Add user to readBy array
+      };
+      
+      if (allRead) {
+        updateData.status = 'read'; // Set to 'read' only when ALL read
+        updateData.readAt = serverTimestamp();
+      }
+      
+      await updateDoc(messageRef, updateData);
+    }
+  }
+}
+```
+
+**Visual Indicators:**
+- ✓ (single checkmark) - Sent
+- ✓✓ (gray double checkmark) - Some participants read
+- ✓✓ (blue double checkmark) - All participants read
+
+**Why this works:**
+- Scales to groups of any size
+- Matches WhatsApp user expectations
+- Provides detailed read receipts (long press → Message Info)
+- `arrayUnion` prevents duplicate entries
+- Status only changes when ALL non-sender participants read
+
+### 14. On-Demand Presence Fetching Pattern
+
+**Problem:** Continuous presence subscriptions for group members can cause excessive updates and incorrect status  
+**Solution:** Fetch presence data only when the UI component needs it
+
+```javascript
+// BAD: Continuous subscription in parent component
+useEffect(() => {
+  const unsubscribe = listenToMultiplePresences(participantIds, (presenceMap) => {
+    setPresenceData(presenceMap); // Fires on every presence change
+  });
+  return () => unsubscribe();
+}, [participantIds]);
+
+// GOOD: On-demand fetch in modal
+useEffect(() => {
+  if (!visible || participants.length === 0) return;
+  
+  async function fetchPresence() {
+    const participantIds = participants.map(p => p.id);
+    const presenceMap = await getMultiplePresences(participantIds); // One-time fetch
+    
+    const updatedParticipants = participants.map(participant => ({
+      ...participant,
+      isOnline: presenceMap[participant.id]?.isOnline || false,
+      lastSeen: presenceMap[participant.id]?.lastSeen,
+    }));
+    
+    setParticipantsWithPresence(updatedParticipants);
+  }
+  
+  fetchPresence();
+}, [visible, participants]); // Only fetch when modal opens
+```
+
+**Benefits:**
+- Reduces unnecessary Firestore reads
+- Shows accurate status at the moment user views it
+- No continuous background updates for hidden UI
+- Cleaner console logs (no excessive presence updates)
+- Better performance
+
+### 15. Scroll-to-Unread Pattern (WhatsApp-style)
+
+**Problem:** Users should see unread messages first when opening a chat  
+**Solution:** Track first unread message and scroll to it on mount
+
+```javascript
+// Identify first unread message (ChatScreen)
+const [firstUnreadMessageId, setFirstUnreadMessageId] = useState(null);
+
+useEffect(() => {
+  if (!messages || messages.length === 0 || !user) return;
+  
+  if (firstUnreadMessageId === null) { // Only set once on initial load
+    const firstUnread = messages.find(
+      msg => msg.senderId !== user.uid && msg.status !== 'read'
+    );
+    
+    if (firstUnread) {
+      setFirstUnreadMessageId(firstUnread.id);
+    }
+  }
+}, [messages, user, firstUnreadMessageId]);
+
+// Reset on conversation change
+useEffect(() => {
+  setFirstUnreadMessageId(null);
+}, [conversationId]);
+
+// Scroll to unread in MessageList
+useEffect(() => {
+  if (messages.length > 0 && flatListRef.current && !hasScrolledToUnread.current) {
+    setTimeout(() => {
+      if (firstUnreadMessageId) {
+        const unreadIndex = messages.findIndex(m => m.id === firstUnreadMessageId);
+        
+        if (unreadIndex !== -1) {
+          try {
+            flatListRef.current.scrollToIndex({ 
+              index: unreadIndex, 
+              animated: false,
+              viewPosition: 0.2 // Show unread message 20% from top
+            });
+          } catch (error) {
+            // Fallback if scrollToIndex fails
+            flatListRef.current.scrollToEnd({ animated: false });
+          }
+        }
+      } else {
+        // No unreads - scroll to bottom
+        flatListRef.current.scrollToEnd({ animated: false });
+      }
+      
+      hasScrolledToUnread.current = true;
+    }, 500); // Delay to ensure layout complete
+  }
+}, [messages.length, firstUnreadMessageId]);
+
+// Add onScrollToIndexFailed handler for retry
+const handleScrollToIndexFailed = (info) => {
+  setTimeout(() => {
+    if (flatListRef.current && info.index < messages.length) {
+      try {
+        flatListRef.current.scrollToIndex({ 
+          index: info.index, 
+          animated: false,
+          viewPosition: 0.2 
+        });
+      } catch (error) {
+        flatListRef.current.scrollToEnd({ animated: false });
+      }
+    }
+  }, 100);
+};
+```
+
+**Visual Enhancement:**
+```javascript
+// Show "Unread messages" divider
+{showUnreadDivider && (
+  <View style={styles.unreadDivider}>
+    <View style={styles.unreadDividerLine} />
+    <Text style={styles.unreadDividerText}>Unread messages</Text>
+    <View style={styles.unreadDividerLine} />
+  </View>
+)}
+```
+
+**Key Learnings:**
+- `scrollToIndex` requires items to be laid out (use delay)
+- `onScrollToIndexFailed` provides retry mechanism
+- `viewPosition: 0.2` shows context above unread message
+- Always have fallback to `scrollToEnd`
+- Reset scroll flag when changing conversations
+
+### 16. Optimistic Message Cleanup for Offline Sync
+
+**Problem:** Optimistic messages can duplicate after offline sync  
+**Solution:** Clean up queued optimistic messages that have been synced
+
+```javascript
+// In useMessages hook
+const updateMessages = useCallback(async () => {
+  const firestoreMessages = firestoreMessagesRef.current;
+  const optimisticArray = Array.from(optimisticMessages.current.values());
+  
+  // Existing cleanup by content/senderId (for online sends)
+  optimisticArray.forEach(optMsg => {
+    const matchingFirestoreMsg = firestoreMessages.find(
+      fm => fm.senderId === optMsg.senderId && 
+            fm.content === optMsg.content && 
+            Math.abs(fm.timestamp - optMsg.timestamp) < 5000
+    );
+    if (matchingFirestoreMsg) {
+      optimisticMessages.current.delete(optMsg.id);
+    }
+  });
+  
+  // NEW: Clean up queued messages that have been synced
+  const queuedOptimisticMessages = Array.from(optimisticMessages.current.values())
+    .filter(msg => msg.status === 'queued' && msg.id.startsWith('temp-'));
+  
+  if (queuedOptimisticMessages.length > 0 && conversationId) {
+    const localMessages = await getLocalMessages(conversationId);
+    const localMessageIds = new Set(localMessages.map(m => m.id));
+    
+    queuedOptimisticMessages.forEach(queuedMsg => {
+      if (!localMessageIds.has(queuedMsg.id)) {
+        // Message no longer in local DB = successfully synced and removed
+        optimisticMessages.current.delete(queuedMsg.id);
+      }
+    });
+  }
+  
+  // Merge and sort messages
+  const allMessages = [...firestoreMessages, ...Array.from(optimisticMessages.current.values())];
+  const sortedMessages = allMessages.sort((a, b) => a.timestamp - b.timestamp);
+  setMessages(sortedMessages);
+}, [conversationId]);
+```
+
+**Why this works:**
+- messageSync.js removes synced messages from local database
+- Checking local DB tells us which messages have been synced
+- Prevents orange "queued" messages from persisting after sync
+- User sees seamless transition from queued → sent
+
 ## Discovered Patterns (October 21, 2025)
 
 ### 5. Optimistic Message Deduplication
@@ -577,6 +826,6 @@ export function useNetworkStatus() {
 
 ---
 
-This system patterns document reflects discovered patterns from actual implementation as of October 21, 2025 (Evening Update).  
-**Status: 11/16 PRs Complete - Most Core Patterns Established**
+This system patterns document reflects discovered patterns from actual implementation as of October 22, 2025 (Post-MVP Enhancements).  
+**Status: 14/16 PRs Complete + Advanced Features - All Core Patterns Established**
 

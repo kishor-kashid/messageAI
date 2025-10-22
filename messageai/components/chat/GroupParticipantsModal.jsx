@@ -4,7 +4,7 @@
  * Displays all participants in a group chat
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,8 +13,11 @@ import {
   TouchableOpacity,
   FlatList,
   SafeAreaView,
+  ActivityIndicator,
 } from 'react-native';
 import { Avatar } from '../ui/Avatar';
+import { getMultiplePresences } from '../../lib/firebase/presence';
+import { formatRelativeTime } from '../../lib/utils/formatters';
 
 /**
  * @param {Object} props
@@ -31,8 +34,55 @@ export function GroupParticipantsModal({
   groupName = 'Group Chat',
   currentUserId = null,
 }) {
+  const [participantsWithPresence, setParticipantsWithPresence] = useState([]);
+  const [loadingPresence, setLoadingPresence] = useState(false);
+
+  // Fetch presence data when modal opens
+  useEffect(() => {
+    if (!visible || participants.length === 0) {
+      setParticipantsWithPresence([]);
+      return;
+    }
+
+    async function fetchPresence() {
+      setLoadingPresence(true);
+      try {
+        const participantIds = participants.map(p => p.id);
+        const presenceMap = await getMultiplePresences(participantIds);
+        
+        // Merge presence data with participant profiles
+        const updatedParticipants = participants.map(participant => ({
+          ...participant,
+          isOnline: presenceMap[participant.id]?.isOnline || false,
+          lastSeen: presenceMap[participant.id]?.lastSeen?.toMillis?.() || 
+                    presenceMap[participant.id]?.lastSeen || 
+                    participant.lastSeen,
+        }));
+        
+        setParticipantsWithPresence(updatedParticipants);
+      } catch (error) {
+        console.error('Error fetching presence:', error);
+        setParticipantsWithPresence(participants);
+      } finally {
+        setLoadingPresence(false);
+      }
+    }
+
+    fetchPresence();
+  }, [visible, participants]);
+
   const renderParticipant = ({ item }) => {
     const isCurrentUser = item.id === currentUserId;
+    const isOnline = item.isOnline || false;
+    
+    // Format last seen for offline users
+    let lastSeenText = '';
+    if (!isOnline && item.lastSeen) {
+      const lastSeenTimestamp = item.lastSeen?.toMillis?.() || item.lastSeen;
+      if (lastSeenTimestamp) {
+        lastSeenText = `Last seen ${formatRelativeTime(lastSeenTimestamp)}`;
+      }
+    }
     
     return (
       <View style={styles.participantItem}>
@@ -40,8 +90,8 @@ export function GroupParticipantsModal({
           uri={item.photoURL}
           displayName={item.displayName}
           size={48}
-          showOnlineBadge={false}
-          isOnline={false}
+          showOnlineBadge={true}
+          isOnline={isOnline}
         />
         
         <View style={styles.participantInfo}>
@@ -57,6 +107,14 @@ export function GroupParticipantsModal({
           <Text style={styles.participantEmail} numberOfLines={1}>
             {item.email}
           </Text>
+          
+          {isOnline ? (
+            <Text style={styles.onlineStatus}>Online</Text>
+          ) : (
+            lastSeenText && (
+              <Text style={styles.lastSeenStatus}>{lastSeenText}</Text>
+            )
+          )}
         </View>
       </View>
     );
@@ -98,15 +156,22 @@ export function GroupParticipantsModal({
         </View>
 
         {/* Participants List */}
-        <FlatList
-          data={participants}
-          renderItem={renderParticipant}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
-          ListHeaderComponent={renderHeader}
-          ListEmptyComponent={renderEmpty}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
-        />
+        {loadingPresence && participantsWithPresence.length === 0 ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#007AFF" />
+            <Text style={styles.loadingText}>Loading status...</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={participantsWithPresence.length > 0 ? participantsWithPresence : participants}
+            renderItem={renderParticipant}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.listContent}
+            ListHeaderComponent={renderHeader}
+            ListEmptyComponent={renderEmpty}
+            ItemSeparatorComponent={() => <View style={styles.separator} />}
+          />
+        )}
       </SafeAreaView>
     </Modal>
   );
@@ -207,6 +272,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#4CAF50',
     fontWeight: '500',
+    marginTop: 2,
+  },
+  lastSeenStatus: {
+    fontSize: 12,
+    color: '#999999',
+    fontWeight: '400',
+    marginTop: 2,
   },
   separator: {
     height: StyleSheet.hairlineWidth,
@@ -220,6 +292,17 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     color: '#999999',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#666666',
+    marginTop: 12,
   },
 });
 

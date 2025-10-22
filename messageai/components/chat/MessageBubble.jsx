@@ -121,6 +121,7 @@ function calculateGroupStatus(message, conversation, currentUserId) {
  * @param {Object} [props.conversation] - Conversation object (for group read tracking)
  * @param {string} [props.currentUserId] - Current user's ID (for group read tracking)
  * @param {Function} [props.onImagePress] - Callback when image is pressed
+ * @param {Function} [props.onShowInfo] - Callback to show message info (read receipts)
  */
 export function MessageBubble({ 
   message, 
@@ -131,6 +132,7 @@ export function MessageBubble({
   conversation = null,
   currentUserId = null,
   onImagePress,
+  onShowInfo,
 }) {
   const { content, imageUrl, timestamp, status: rawStatus = 'sent' } = message;
   
@@ -144,6 +146,19 @@ export function MessageBubble({
   const hasImage = !!imageUrl;
   const hasText = !!content;
 
+  // Handle long press for message info (WhatsApp-style)
+  // Works for both group and direct chats
+  const handleLongPress = () => {
+    if (isOwnMessage && onShowInfo) {
+      onShowInfo(message);
+    }
+  };
+
+  const BubbleWrapper = isOwnMessage && onShowInfo ? TouchableOpacity : View;
+  const bubbleProps = isOwnMessage && onShowInfo 
+    ? { activeOpacity: 0.7, onLongPress: handleLongPress }
+    : {};
+
   return (
     <View style={[
       styles.container,
@@ -155,13 +170,16 @@ export function MessageBubble({
           <Text style={styles.senderName}>{senderName}</Text>
         )}
         
-        <View style={[
-          styles.bubble,
-          isOwnMessage ? styles.ownBubble : styles.otherBubble,
-          status === 'failed' && styles.failedBubble,
-          status === 'queued' && styles.queuedBubble,
-          hasImage && styles.imageBubble
-        ]}>
+        <BubbleWrapper 
+          style={[
+            styles.bubble,
+            isOwnMessage ? styles.ownBubble : styles.otherBubble,
+            status === 'failed' && styles.failedBubble,
+            status === 'queued' && styles.queuedBubble,
+            hasImage && styles.imageBubble
+          ]}
+          {...bubbleProps}
+        >
           {/* Image */}
           {hasImage && (
             <TouchableOpacity
@@ -246,7 +264,7 @@ export function MessageBubble({
               )}
             </View>
           )}
-        </View>
+        </BubbleWrapper>
       </View>
     </View>
   );
