@@ -33,6 +33,7 @@ import { MessageInput } from '../../components/chat/MessageInput';
 import { ConversationHeader } from '../../components/conversations/ConversationHeader';
 import { TypingIndicator } from '../../components/chat/TypingIndicator';
 import { GroupParticipantsModal } from '../../components/chat/GroupParticipantsModal';
+import { ReadReceiptsModal } from '../../components/chat/ReadReceiptsModal';
 
 export default function ChatScreen() {
   const { id: conversationId } = useLocalSearchParams();
@@ -47,6 +48,7 @@ export default function ChatScreen() {
   const [senderProfiles, setSenderProfiles] = useState({});
   const [showGroupParticipants, setShowGroupParticipants] = useState(false);
   const [firstUnreadMessageId, setFirstUnreadMessageId] = useState(null);
+  const [selectedMessageForInfo, setSelectedMessageForInfo] = useState(null);
   
   const {
     messages,
@@ -131,7 +133,7 @@ export default function ChatScreen() {
     loadConversation();
   }, [conversationId, user, router]);
 
-  // Subscribe to other participant's presence
+  // Subscribe to other participant's presence (direct chat)
   useEffect(() => {
     if (!conversation || conversation.type !== 'direct' || !user) return;
     
@@ -156,6 +158,8 @@ export default function ChatScreen() {
       if (unsubscribe) unsubscribe();
     };
   }, [conversation, user]);
+
+  // Presence is now fetched on-demand when modal opens (see GroupParticipantsModal)
 
   // Subscribe to typing indicators
   useEffect(() => {
@@ -263,6 +267,15 @@ export default function ChatScreen() {
     setShowGroupParticipants(false);
   };
 
+  const handleShowMessageInfo = (message) => {
+    console.log('📊 Showing message info for:', message.id);
+    setSelectedMessageForInfo(message);
+  };
+
+  const handleCloseMessageInfo = () => {
+    setSelectedMessageForInfo(null);
+  };
+
   // Cleanup typing timeout on unmount
   useEffect(() => {
     return () => {
@@ -318,6 +331,7 @@ export default function ChatScreen() {
             senderProfiles={senderProfiles}
             conversation={conversation}
             firstUnreadMessageId={firstUnreadMessageId}
+            onShowMessageInfo={handleShowMessageInfo}
           />
           
           {/* Typing Indicator */}
@@ -354,6 +368,18 @@ export default function ChatScreen() {
           currentUserId={user?.uid}
         />
       )}
+
+      {/* Read Receipts Modal (WhatsApp-style Message Info) */}
+      <ReadReceiptsModal
+        visible={!!selectedMessageForInfo}
+        onClose={handleCloseMessageInfo}
+        message={selectedMessageForInfo}
+        participants={conversation?.type === 'group' 
+          ? senderProfiles 
+          : (otherParticipant ? { [otherParticipant.id]: otherParticipant } : {})
+        }
+        currentUserId={user?.uid}
+      />
     </SafeAreaView>
   );
 }
