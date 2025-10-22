@@ -46,6 +46,7 @@ export default function ChatScreen() {
   const [typingUserIds, setTypingUserIds] = useState([]);
   const [senderProfiles, setSenderProfiles] = useState({});
   const [showGroupParticipants, setShowGroupParticipants] = useState(false);
+  const [firstUnreadMessageId, setFirstUnreadMessageId] = useState(null);
   
   const {
     messages,
@@ -64,6 +65,8 @@ export default function ChatScreen() {
     if (conversationId) {
       console.log('📍 User viewing chat:', conversationId);
       setCurrentScreen(`chat_${conversationId}`);
+      // Reset firstUnreadMessageId when switching chats
+      setFirstUnreadMessageId(null);
     }
     return () => {
       console.log('📍 User left chat:', conversationId);
@@ -166,6 +169,23 @@ export default function ChatScreen() {
       if (unsubscribe) unsubscribe();
     };
   }, [conversationId, user]);
+
+  // Identify first unread message for scroll positioning (capture before marking as read)
+  useEffect(() => {
+    if (!messages || messages.length === 0 || !user) return;
+    
+    // Only set this once when messages first load
+    if (firstUnreadMessageId === null) {
+      const firstUnread = messages.find(
+        msg => msg.senderId !== user.uid && msg.status !== 'read'
+      );
+      
+      if (firstUnread) {
+        console.log('📍 First unread message identified:', firstUnread.id);
+        setFirstUnreadMessageId(firstUnread.id);
+      }
+    }
+  }, [messages, user, firstUnreadMessageId]);
 
   // Mark messages as read and reset unread count whenever in the chat
   useEffect(() => {
@@ -297,6 +317,7 @@ export default function ChatScreen() {
             isGroupChat={conversation?.type === 'group'}
             senderProfiles={senderProfiles}
             conversation={conversation}
+            firstUnreadMessageId={firstUnreadMessageId}
           />
           
           {/* Typing Indicator */}

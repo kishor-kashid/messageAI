@@ -43,10 +43,12 @@ export function NotificationProvider({ children }) {
             const lastMessageTimestamp = conv.lastMessageTimestamp;
             const lastMessageSenderId = conv.lastMessageSenderId;
             const lastMessageId = `${conv.id}_${lastMessageTimestamp}`;
+            const unreadCount = conv.unreadCount?.[user.uid] || 0;
             
             if (lastMessage && 
                 lastMessageSenderId !== user.uid && 
-                !lastMessageIds.current.has(lastMessageId)) {
+                !lastMessageIds.current.has(lastMessageId) &&
+                unreadCount > 0) {
               
               // Mark as seen
               lastMessageIds.current.add(lastMessageId);
