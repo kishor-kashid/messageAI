@@ -99,7 +99,7 @@ export default function CreateGroupScreen() {
         activeOpacity={0.7}
       >
         <Avatar
-          uri={item.profilePicture}
+          uri={item.photoURL}
           displayName={item.displayName}
           size={48}
         />
@@ -141,7 +141,7 @@ export default function CreateGroupScreen() {
               onPress={() => toggleContactSelection(contact.id)}
             >
               <Avatar
-                uri={contact.profilePicture}
+                uri={contact.photoURL}
                 displayName={contact.displayName}
                 size={56}
               />

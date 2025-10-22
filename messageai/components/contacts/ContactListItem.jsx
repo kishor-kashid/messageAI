@@ -14,7 +14,7 @@ import { Avatar } from '../ui/Avatar';
  * @param {string} props.contact.id - Contact user ID
  * @param {string} props.contact.displayName - Contact display name
  * @param {string} props.contact.email - Contact email
- * @param {string} [props.contact.profilePicture] - Profile picture URL
+ * @param {string} [props.contact.photoURL] - Profile picture URL
  * @param {Function} props.onPress - Callback when contact is tapped
  * @param {Function} [props.onLongPress] - Callback for long press (e.g., delete)
  */
@@ -22,7 +22,7 @@ export function ContactListItem({ contact, onPress, onLongPress }) {
   const {
     displayName,
     email,
-    profilePicture,
+    photoURL,
   } = contact;
 
   return (
@@ -34,8 +34,8 @@ export function ContactListItem({ contact, onPress, onLongPress }) {
     >
       <View style={styles.avatarContainer}>
         <Avatar
-          uri={profilePicture}
-          name={displayName}
+          uri={photoURL}
+          displayName={displayName}
           size={50}
           showOnlineBadge={false}
           isOnline={false}

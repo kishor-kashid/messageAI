@@ -71,7 +71,7 @@ export function ConversationListItem({
   // Support group photos from conversation.groupPhoto
   const avatarUri = type === 'group'
     ? conversation.groupPhoto || null
-    : otherParticipant?.profilePicture;
+    : otherParticipant?.photoURL;
 
   return (
     <TouchableOpacity

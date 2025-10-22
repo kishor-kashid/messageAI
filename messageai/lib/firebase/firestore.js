@@ -550,6 +550,7 @@ export async function sendMessage(messageData) {
       type,
       timestamp,
       status: 'sent',
+      readBy: [], // Track which users have read the message
       createdAt: serverTimestamp(),
     };
 
@@ -688,12 +689,16 @@ export async function updateMessageStatus(conversationId, messageId, status) {
 }
 
 /**
- * Mark messages as read
+ * Mark messages as read (WhatsApp-style)
+ * For group chats: tracks individual reads, marks as 'read' only when ALL participants have read
+ * For direct chats: immediately marks as 'read'
  * @param {string} conversationId - Conversation ID
  * @param {Array<string>} messageIds - Array of message IDs to mark as read
+ * @param {string} userId - ID of user marking as read
+ * @param {Object} conversation - Conversation object (to check type and participants)
  * @returns {Promise<void>}
  */
-export async function markMessagesAsRead(conversationId, messageIds) {
+export async function markMessagesAsRead(conversationId, messageIds, userId, conversation) {
   try {
     // Filter out temporary/optimistic messages (IDs starting with "temp-")
     const realMessageIds = messageIds.filter(id => !id.startsWith('temp-'));
@@ -703,20 +708,65 @@ export async function markMessagesAsRead(conversationId, messageIds) {
       return;
     }
     
+    const isGroupChat = conversation?.type === 'group';
     const batch = [];
     
     for (const messageId of realMessageIds) {
       const messageRef = doc(db, 'conversations', conversationId, 'messages', messageId);
-      batch.push(
-        updateDoc(messageRef, {
-          status: 'read',
-          readAt: serverTimestamp(),
-        })
-      );
+      
+      if (isGroupChat) {
+        // For group chats: track individual reads
+        // First, get the current message to see who has already read it
+        const messageSnap = await getDoc(messageRef);
+        if (!messageSnap.exists()) continue;
+        
+        const messageData = messageSnap.data();
+        const currentReadBy = messageData.readBy || [];
+        
+        // Skip if this user has already read it
+        if (currentReadBy.includes(userId)) {
+          continue;
+        }
+        
+        // Calculate updated readBy array
+        const updatedReadBy = [...currentReadBy, userId];
+        
+        // Get all participants except the sender
+        const participantsExceptSender = conversation.participantIds.filter(
+          id => id !== messageData.senderId
+        );
+        
+        // Check if ALL participants (except sender) have now read it
+        const allRead = participantsExceptSender.every(id => updatedReadBy.includes(id));
+        
+        // Update with conditional status change
+        const updateData = {
+          readBy: arrayUnion(userId), // Add userId to readBy array
+        };
+        
+        if (allRead) {
+          updateData.status = 'read';
+          updateData.readAt = serverTimestamp();
+        }
+        
+        batch.push(updateDoc(messageRef, updateData));
+        
+      } else {
+        // For direct chats: immediately mark as read (existing behavior)
+        batch.push(
+          updateDoc(messageRef, {
+            readBy: arrayUnion(userId), // Still track for consistency
+            status: 'read',
+            readAt: serverTimestamp(),
+          })
+        );
+      }
     }
     
-    await Promise.all(batch);
-    console.log(`✅ Marked ${realMessageIds.length} messages as read`);
+    if (batch.length > 0) {
+      await Promise.all(batch);
+      console.log(`✅ Marked ${batch.length} messages as read by ${userId}${isGroupChat ? ' (group chat)' : ''}`);
+    }
   } catch (error) {
     console.error('Error marking messages as read:', error);
     throw new Error('Failed to mark messages as read');

@@ -18,6 +18,8 @@ import { formatTimestamp } from '../../lib/utils/formatters';
  * @param {Function} [props.onLoadMore] - Callback for loading more messages
  * @param {boolean} [props.isGroupChat=false] - Whether this is a group chat
  * @param {Object} [props.senderProfiles={}] - Map of senderId -> user profile
+ * @param {Object} [props.conversation=null] - Conversation object (for group read tracking)
+ * @param {string} [props.firstUnreadMessageId=null] - ID of first unread message for scroll positioning
  */
 export function MessageList({ 
   messages, 
@@ -26,11 +28,23 @@ export function MessageList({
   onLoadMore,
   isGroupChat = false,
   senderProfiles = {},
+  conversation = null,
+  firstUnreadMessageId = null,
 }) {
   const flatListRef = useRef(null);
   const previousMessageCount = useRef(messages.length);
   const [imagePreviewVisible, setImagePreviewVisible] = useState(false);
   const [selectedImageUrl, setSelectedImageUrl] = useState(null);
+  const hasScrolledToUnread = useRef(false);
+  const previousFirstUnreadId = useRef(firstUnreadMessageId);
+  
+  // Reset scroll flag when firstUnreadMessageId changes (new chat or messages marked read)
+  useEffect(() => {
+    if (firstUnreadMessageId !== previousFirstUnreadId.current) {
+      hasScrolledToUnread.current = false;
+      previousFirstUnreadId.current = firstUnreadMessageId;
+    }
+  }, [firstUnreadMessageId]);
 
   const handleImagePress = (imageUrl) => {
     setSelectedImageUrl(imageUrl);
@@ -53,14 +67,50 @@ export function MessageList({
     previousMessageCount.current = messages.length;
   }, [messages.length]);
 
-  // Scroll to bottom on initial load
+  // Scroll to first unread message or bottom on initial load (WhatsApp-style)
   useEffect(() => {
-    if (messages.length > 0 && flatListRef.current) {
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: false });
-      }, 300);
+    if (messages.length > 0 && flatListRef.current && !hasScrolledToUnread.current) {
+      // Longer timeout to ensure FlatList has rendered all items
+      const timeoutId = setTimeout(() => {
+        if (!flatListRef.current) return;
+        
+        if (firstUnreadMessageId) {
+          // Find index of first unread message
+          const unreadIndex = messages.findIndex(m => m.id === firstUnreadMessageId);
+          
+          if (unreadIndex !== -1 && unreadIndex < messages.length) {
+            console.log(`📍 Scrolling to first unread message at index ${unreadIndex} of ${messages.length}`);
+            try {
+              flatListRef.current.scrollToIndex({ 
+                index: unreadIndex, 
+                animated: false,
+                viewPosition: 0.2 // Position at 20% from top for better context
+              });
+              hasScrolledToUnread.current = true;
+            } catch (error) {
+              // scrollToIndex can fail if items aren't laid out yet
+              console.warn('scrollToIndex failed, will retry with scrollToEnd:', error);
+              // Fallback to scrollToEnd
+              flatListRef.current.scrollToEnd({ animated: false });
+              hasScrolledToUnread.current = true;
+            }
+          } else {
+            // Unread message not found, scroll to bottom
+            console.log('📍 Unread message not found, scrolling to bottom');
+            flatListRef.current.scrollToEnd({ animated: false });
+            hasScrolledToUnread.current = true;
+          }
+        } else {
+          // No unread messages, scroll to bottom
+          console.log('📍 No unread messages, scrolling to bottom');
+          flatListRef.current.scrollToEnd({ animated: false });
+          hasScrolledToUnread.current = true;
+        }
+      }, 500); // Increased timeout
+      
+      return () => clearTimeout(timeoutId);
     }
-  }, []);
+  }, [messages.length, firstUnreadMessageId]);
 
   /**
    * Check if two messages are on different days
@@ -112,6 +162,9 @@ export function MessageList({
     const showDateSeparator = index === 0 || 
       (index > 0 && isDifferentDay(messages[index - 1].timestamp, item.timestamp));
     
+    // Check if we need to show unread divider (WhatsApp-style)
+    const showUnreadDivider = firstUnreadMessageId && item.id === firstUnreadMessageId;
+    
     return (
       <View>
         {showDateSeparator && (
@@ -123,12 +176,23 @@ export function MessageList({
             <View style={styles.dateSeparatorLine} />
           </View>
         )}
+        {showUnreadDivider && (
+          <View style={styles.unreadDivider}>
+            <View style={styles.unreadDividerLine} />
+            <Text style={styles.unreadDividerText}>
+              Unread messages
+            </Text>
+            <View style={styles.unreadDividerLine} />
+          </View>
+        )}
         <MessageBubble
           message={item}
           isOwnMessage={isOwnMessage}
           showTimestamp={true}
           isGroupChat={isGroupChat}
           senderName={senderName}
+          conversation={conversation}
+          currentUserId={currentUserId}
           onImagePress={handleImagePress}
         />
       </View>
@@ -153,6 +217,30 @@ export function MessageList({
     );
   };
 
+  // Handle scroll failures (when items aren't measured yet)
+  const handleScrollToIndexFailed = (info) => {
+    console.warn('ScrollToIndex failed:', info);
+    // Wait for layout and retry, or scroll to end as fallback
+    setTimeout(() => {
+      if (flatListRef.current) {
+        if (info.index < messages.length) {
+          try {
+            flatListRef.current.scrollToIndex({ 
+              index: info.index, 
+              animated: false,
+              viewPosition: 0.2 
+            });
+          } catch (error) {
+            // If still fails, scroll to end
+            flatListRef.current.scrollToEnd({ animated: false });
+          }
+        } else {
+          flatListRef.current.scrollToEnd({ animated: false });
+        }
+      }
+    }, 100);
+  };
+
   return (
     <>
       <FlatList
@@ -168,6 +256,7 @@ export function MessageList({
         ListEmptyComponent={renderEmpty}
         onEndReached={onLoadMore}
         onEndReachedThreshold={0.5}
+        onScrollToIndexFailed={handleScrollToIndexFailed}
         maintainVisibleContentPosition={{
           minIndexForVisible: 0,
         }}
@@ -236,6 +325,29 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 12,
     marginHorizontal: 8,
+  },
+  unreadDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 12,
+    paddingHorizontal: 16,
+  },
+  unreadDividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#34C759',
+  },
+  unreadDividerText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#34C759',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginHorizontal: 8,
+    borderWidth: 1,
+    borderColor: '#34C759',
   },
 });
 
