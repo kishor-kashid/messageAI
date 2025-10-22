@@ -277,13 +277,14 @@ export function useMessages(conversationId) {
   /**
    * Mark messages as read
    * @param {Array<string>} messageIds - Array of message IDs
+   * @param {Object} conversation - Conversation object (needed for group read tracking)
    * @returns {Promise<void>}
    */
-  const markAsRead = useCallback(async (messageIds) => {
-    if (!conversationId || messageIds.length === 0) return;
+  const markAsRead = useCallback(async (messageIds, conversation) => {
+    if (!user || !conversationId || messageIds.length === 0) return;
 
     try {
-      await markMessagesAsRead(conversationId, messageIds);
+      await markMessagesAsRead(conversationId, messageIds, user.uid, conversation);
       
       // Update local database
       for (const messageId of messageIds) {
@@ -292,7 +293,7 @@ export function useMessages(conversationId) {
     } catch (err) {
       console.error('Error marking messages as read:', err);
     }
-  }, [conversationId]);
+  }, [user, conversationId]);
 
   /**
    * Retry sending a failed message

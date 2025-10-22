@@ -32,6 +32,7 @@ import { MessageList } from '../../components/chat/MessageList';
 import { MessageInput } from '../../components/chat/MessageInput';
 import { ConversationHeader } from '../../components/conversations/ConversationHeader';
 import { TypingIndicator } from '../../components/chat/TypingIndicator';
+import { GroupParticipantsModal } from '../../components/chat/GroupParticipantsModal';
 
 export default function ChatScreen() {
   const { id: conversationId } = useLocalSearchParams();
@@ -44,6 +45,7 @@ export default function ChatScreen() {
   const [loadingConversation, setLoadingConversation] = useState(true);
   const [typingUserIds, setTypingUserIds] = useState([]);
   const [senderProfiles, setSenderProfiles] = useState({});
+  const [showGroupParticipants, setShowGroupParticipants] = useState(false);
   
   const {
     messages,
@@ -167,7 +169,7 @@ export default function ChatScreen() {
 
   // Mark messages as read and reset unread count whenever in the chat
   useEffect(() => {
-    if (!conversationId || !user) return;
+    if (!conversationId || !user || !conversation) return;
 
     const markMessagesAsReadAndResetCount = async () => {
       // Mark unread messages as read
@@ -177,7 +179,7 @@ export default function ChatScreen() {
         );
 
         if (unreadMessages.length > 0) {
-          markAsRead(unreadMessages.map(msg => msg.id));
+          markAsRead(unreadMessages.map(msg => msg.id), conversation);
         }
       }
 
@@ -191,7 +193,7 @@ export default function ChatScreen() {
     };
 
     markMessagesAsReadAndResetCount();
-  }, [messages, conversationId, user, markAsRead]);
+  }, [messages, conversationId, user, conversation, markAsRead]);
 
   // Handle text input change (typing indicator)
   const handleTextChange = useCallback((text) => {
@@ -233,6 +235,14 @@ export default function ChatScreen() {
     }
   };
 
+  const handleShowGroupParticipants = () => {
+    setShowGroupParticipants(true);
+  };
+
+  const handleCloseGroupParticipants = () => {
+    setShowGroupParticipants(false);
+  };
+
   // Cleanup typing timeout on unmount
   useEffect(() => {
     return () => {
@@ -263,6 +273,7 @@ export default function ChatScreen() {
             <ConversationHeader
               participant={otherParticipant}
               conversation={conversation}
+              onGroupInfoPress={handleShowGroupParticipants}
             />
           ),
           headerBackTitle: 'Back',
@@ -285,6 +296,7 @@ export default function ChatScreen() {
             loading={loadingMessages}
             isGroupChat={conversation?.type === 'group'}
             senderProfiles={senderProfiles}
+            conversation={conversation}
           />
           
           {/* Typing Indicator */}
@@ -309,6 +321,17 @@ export default function ChatScreen() {
         <View style={styles.errorBanner}>
           <Text style={styles.errorText}>Error loading messages</Text>
         </View>
+      )}
+
+      {/* Group Participants Modal */}
+      {conversation?.type === 'group' && (
+        <GroupParticipantsModal
+          visible={showGroupParticipants}
+          onClose={handleCloseGroupParticipants}
+          participants={Object.values(senderProfiles)}
+          groupName={conversation.groupName}
+          currentUserId={user?.uid}
+        />
       )}
     </SafeAreaView>
   );

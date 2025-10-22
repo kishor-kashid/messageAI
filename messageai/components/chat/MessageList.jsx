@@ -18,6 +18,7 @@ import { formatTimestamp } from '../../lib/utils/formatters';
  * @param {Function} [props.onLoadMore] - Callback for loading more messages
  * @param {boolean} [props.isGroupChat=false] - Whether this is a group chat
  * @param {Object} [props.senderProfiles={}] - Map of senderId -> user profile
+ * @param {Object} [props.conversation=null] - Conversation object (for group read tracking)
  */
 export function MessageList({ 
   messages, 
@@ -26,6 +27,7 @@ export function MessageList({
   onLoadMore,
   isGroupChat = false,
   senderProfiles = {},
+  conversation = null,
 }) {
   const flatListRef = useRef(null);
   const previousMessageCount = useRef(messages.length);
@@ -129,6 +131,8 @@ export function MessageList({
           showTimestamp={true}
           isGroupChat={isGroupChat}
           senderName={senderName}
+          conversation={conversation}
+          currentUserId={currentUserId}
           onImagePress={handleImagePress}
         />
       </View>

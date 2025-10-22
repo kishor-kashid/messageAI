@@ -16,8 +16,9 @@ import { Avatar } from '../ui/Avatar';
  * @param {Object} [props.participant] - Other participant (for direct chats), passed separately
  * @param {Function} [props.onPress] - Callback when header is tapped (e.g., view profile)
  * @param {Function} [props.onBackPress] - Callback for back button
+ * @param {Function} [props.onGroupInfoPress] - Callback when group info icon is tapped
  */
-export function ConversationHeader({ conversation, participant, onPress, onBackPress }) {
+export function ConversationHeader({ conversation, participant, onPress, onBackPress, onGroupInfoPress }) {
   if (!conversation) {
     return null;
   }
@@ -110,9 +111,18 @@ export function ConversationHeader({ conversation, participant, onPress, onBackP
         </View>
       </TouchableOpacity>
 
-      {/* More Options (placeholder for future) */}
+      {/* More Options */}
       <View style={styles.actionsContainer}>
-        {/* Could add video call, voice call, etc. */}
+        {/* Group Info Button - Show only for group chats */}
+        {type === 'group' && onGroupInfoPress && (
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={onGroupInfoPress}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Text style={styles.actionIcon}>👥</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -169,6 +179,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginLeft: 8,
+  },
+  actionButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 20,
+  },
+  actionIcon: {
+    fontSize: 24,
   },
 });
 
