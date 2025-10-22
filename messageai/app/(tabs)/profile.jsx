@@ -14,20 +14,78 @@ import {
   Alert,
   ScrollView,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { useAuth } from '../../lib/hooks/useAuth';
+import { useImagePicker } from '../../lib/hooks/useImagePicker';
 import { Avatar } from '../../components/ui/Avatar';
-import { updateDisplayName } from '../../lib/firebase/firestore';
+import { updateDisplayName, updateProfilePicture } from '../../lib/firebase/firestore';
+import { uploadProfilePicture } from '../../lib/firebase/storage';
 
 export default function ProfileScreen() {
   const { user, userProfile, logout, refreshProfile } = useAuth();
+  const { pickImage, takePhoto, loading: imageLoading } = useImagePicker();
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [editedName, setEditedName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   const handleEditPress = () => {
     setEditedName(userProfile?.displayName || '');
     setIsEditModalVisible(true);
+  };
+
+  const handleChangePhoto = () => {
+    Alert.alert(
+      'Change Profile Picture',
+      'Select an option',
+      [
+        {
+          text: 'Take Photo',
+          onPress: async () => {
+            const uri = await takePhoto();
+            if (uri) {
+              await handleUploadPhoto(uri);
+            }
+          },
+        },
+        {
+          text: 'Choose from Library',
+          onPress: async () => {
+            const uri = await pickImage();
+            if (uri) {
+              await handleUploadPhoto(uri);
+            }
+          },
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
+  };
+
+  const handleUploadPhoto = async (imageUri) => {
+    try {
+      setIsUploadingPhoto(true);
+      
+      // Upload to Firebase Storage
+      const photoURL = await uploadProfilePicture(user.uid, imageUri);
+      
+      // Update Firestore
+      await updateProfilePicture(user.uid, photoURL);
+      
+      // Refresh profile to show new picture
+      await refreshProfile();
+      
+      Alert.alert('Success', 'Profile picture updated successfully');
+    } catch (error) {
+      console.error('Error uploading profile picture:', error);
+      Alert.alert('Error', 'Failed to update profile picture. Please try again.');
+    } finally {
+      setIsUploadingPhoto(false);
+    }
   };
 
   const handleSaveProfile = async () => {
@@ -92,11 +150,27 @@ export default function ProfileScreen() {
     <ScrollView style={styles.container}>
       {/* Profile Header */}
       <View style={styles.header}>
-        <Avatar
-          displayName={userProfile.displayName}
-          photoURL={userProfile.photoURL}
-          size={100}
-        />
+        <View style={styles.avatarContainer}>
+          <Avatar
+            displayName={userProfile.displayName}
+            uri={userProfile.photoURL}
+            size={100}
+          />
+          {isUploadingPhoto && (
+            <View style={styles.uploadingOverlay}>
+              <ActivityIndicator size="large" color="#007AFF" />
+            </View>
+          )}
+        </View>
+        <TouchableOpacity 
+          style={styles.changePhotoButton}
+          onPress={handleChangePhoto}
+          disabled={imageLoading || isUploadingPhoto}
+        >
+          <Text style={styles.changePhotoText}>
+            {isUploadingPhoto ? 'Uploading...' : '📷 Change Photo'}
+          </Text>
+        </TouchableOpacity>
         <Text style={styles.displayName}>{userProfile.displayName}</Text>
         <Text style={styles.email}>{userProfile.email}</Text>
       </View>
@@ -211,6 +285,31 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8F8F8',
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
+  },
+  avatarContainer: {
+    position: 'relative',
+    marginBottom: 12,
+  },
+  uploadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  changePhotoButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
+  changePhotoText: {
+    color: '#007AFF',
+    fontSize: 16,
+    fontWeight: '500',
   },
   displayName: {
     fontSize: 24,

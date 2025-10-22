@@ -38,7 +38,7 @@ export function ConversationHeader({ conversation, participant, onPress, onBackP
     
   const avatarUri = type === 'group'
     ? conversation.groupPhoto || null
-    : otherParticipant?.profilePicture;
+    : otherParticipant?.photoURL;
     
   const isOnline = type === 'direct' && otherParticipant?.isOnline;
   

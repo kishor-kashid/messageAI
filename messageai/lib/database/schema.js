@@ -92,6 +92,23 @@ export async function initializeDatabase() {
     // Migration: Make content nullable (for existing databases with image-only messages)
     // Note: SQLite doesn't support ALTER COLUMN, so this is handled by the new table definition above
 
+    // Migration: Rename profilePicture to photoURL in contacts table (for consistency with Firebase)
+    try {
+      const tableInfo = db.getAllSync("PRAGMA table_info(contacts);");
+      const hasOldColumn = tableInfo.some(col => col.name === 'profilePicture');
+      const hasNewColumn = tableInfo.some(col => col.name === 'photoURL');
+      
+      if (hasOldColumn && !hasNewColumn) {
+        db.execSync(`ALTER TABLE contacts RENAME COLUMN profilePicture TO photoURL;`);
+        console.log('✅ Migrated profilePicture to photoURL in contacts table');
+      }
+    } catch (err) {
+      // Safe to ignore if column doesn't exist or already renamed
+      if (!err.message.includes('no such column')) {
+        console.warn('⚠️ Could not migrate profilePicture column:', err.message);
+      }
+    }
+
     // Index for faster queries
     db.execSync(
       `CREATE INDEX IF NOT EXISTS idx_messages_conversation 
@@ -128,7 +145,7 @@ export async function initializeDatabase() {
         id TEXT PRIMARY KEY,
         email TEXT NOT NULL UNIQUE,
         displayName TEXT NOT NULL,
-        profilePicture TEXT,
+        photoURL TEXT,
         lastSeen INTEGER,
         status TEXT,
         createdAt INTEGER DEFAULT (strftime('%s', 'now') * 1000),

@@ -89,7 +89,7 @@ export function useAuth() {
       await createUserProfile(userId, {
         email: user.email,
         displayName,
-        profilePicture: profilePictureUrl || '',
+        photoURL: profilePictureUrl || '',
       });
     } catch (error) {
       throw error;
@@ -113,7 +113,7 @@ export function useAuth() {
           user.uid,
           updates.profilePictureUri
         );
-        updates.profilePicture = profilePictureUrl;
+        updates.photoURL = profilePictureUrl;
         delete updates.profilePictureUri;
       }
 
