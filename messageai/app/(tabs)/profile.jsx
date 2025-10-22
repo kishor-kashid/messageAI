@@ -188,20 +188,6 @@ export default function ProfileScreen() {
           <Text style={styles.infoLabel}>Email</Text>
           <Text style={styles.infoValue}>{userProfile.email}</Text>
         </View>
-
-        <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>Phone</Text>
-          <Text style={styles.infoValue}>
-            {userProfile.phoneNumber || 'Not set'}
-          </Text>
-        </View>
-
-        <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>Status</Text>
-          <Text style={styles.infoValue}>
-            {userProfile.isOnline ? '🟢 Online' : '⚫ Offline'}
-          </Text>
-        </View>
       </View>
 
       {/* Action Buttons */}

@@ -18,6 +18,7 @@ import {
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useAuth } from '../../lib/hooks/useAuth';
 import { useMessages } from '../../lib/hooks/useMessages';
+import { useNotifications } from '../../lib/context/NotificationContext';
 import {
   getConversationById,
   resetUnreadCount,
@@ -36,6 +37,7 @@ export default function ChatScreen() {
   const { id: conversationId } = useLocalSearchParams();
   const router = useRouter();
   const { user } = useAuth();
+  const { setCurrentScreen } = useNotifications();
   
   const [conversation, setConversation] = useState(null);
   const [otherParticipant, setOtherParticipant] = useState(null);
@@ -54,6 +56,18 @@ export default function ChatScreen() {
 
   // Typing timeout ref
   const typingTimeoutRef = useRef(null);
+
+  // Track current screen for notification silencing
+  useEffect(() => {
+    if (conversationId) {
+      console.log('📍 User viewing chat:', conversationId);
+      setCurrentScreen(`chat_${conversationId}`);
+    }
+    return () => {
+      console.log('📍 User left chat:', conversationId);
+      setCurrentScreen(null);
+    };
+  }, [conversationId, setCurrentScreen]);
 
   // Load conversation details
   useEffect(() => {

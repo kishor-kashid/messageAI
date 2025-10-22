@@ -784,52 +784,98 @@ npm test -- --coverage   # Run with coverage report
 
 ---
 
-### **PR #12: Push Notifications**
-**Branch:** `feature/push-notifications`  
-**Goal:** Implement foreground push notifications
+### **PR #12: In-App Notifications (Foreground Only)**
+**Branch:** `feature/foreground-notifications`  
+**Status:** ✅ COMPLETE  
+**Goal:** Implement in-app banner notifications for foreground messages using Firestore real-time listeners
 
-#### Tasks:
-- [ ] **12.1: Set Up Expo Notifications**
-  - Create `lib/notifications/setup.js`
-  - Request notification permissions
-  - Get push token
-  - **Files created:** `lib/notifications/setup.js`
+**Approach:** Instead of traditional push notifications (requires dev build + backend), implemented local notifications with Firestore listeners - works in Expo Go, no backend needed.
 
-- [ ] **12.2: Store Push Tokens in Firestore**
-  - Update `lib/firebase/firestore.js`
-  - Add `savePushToken()` function
-  - Save token to user document
-  - **Files modified:** `lib/firebase/firestore.js`
+#### Phase 1: Foreground In-App Banners (✅ IMPLEMENTED)
 
-- [ ] **12.3: Configure FCM in Firebase**
-  - Enable Cloud Messaging in Firebase Console
-  - Add server key to `.env`
-  - **Files modified:** `.env`
+- [x] **12.1: Create NotificationContext**
+  - Create `lib/context/NotificationContext.jsx`
+  - Subscribe to all user conversations via Firestore
+  - Track app state (foreground/background)
+  - Track current screen (which chat is open)
+  - Manage banner queue
+  - Deduplicate messages using message IDs
+  - **Files created:** `lib/context/NotificationContext.jsx`
 
-- [ ] **12.4: Create Notification Handler**
-  - Create `lib/notifications/handler.js`
-  - Handle foreground notifications
-  - Show in-app notification banner
-  - **Files created:** `lib/notifications/handler.js`
+- [x] **12.2: Create InAppBanner Component**
+  - Create `components/notifications/InAppBanner.jsx`
+  - Animated slide-in banner from top
+  - Display sender avatar, name, message preview
+  - Tap to navigate to conversation
+  - Auto-dismiss after 4 seconds
+  - Manual dismiss button
+  - Platform-specific status bar padding
+  - **Files created:** `components/notifications/InAppBanner.jsx`
 
-- [ ] **12.5: Send Notification on New Message**
-  - Create Firebase Cloud Function (optional for MVP)
-  - Or implement client-side notification trigger
-  - Send notification to recipient when message sent
-  - **Files created:** `functions/sendNotification.js` (if using Cloud Functions)
-
-- [ ] **12.6: Integrate Notifications in App**
+- [x] **12.3: Integrate NotificationProvider**
   - Update `app/_layout.jsx`
-  - Initialize notifications on app start
-  - Register listeners
+  - Wrap app with NotificationProvider
+  - Add InAppBanner overlay component
   - **Files modified:** `app/_layout.jsx`
 
-- [ ] **12.7: Test Foreground Notifications**
-  - Send message from User A
-  - Verify User B sees notification (app in foreground)
+- [x] **12.4: Add Screen Tracking**
+  - Update `app/chat/[id].jsx`
+  - Track when user enters/exits chat
+  - Set currentScreen state for notification silencing
+  - **Files modified:** `app/chat/[id].jsx`
+
+- [x] **12.5: Fetch Participant Profiles**
+  - Update NotificationContext to fetch user profiles
+  - For direct chats: fetch other participant's name and photo
+  - For group chats: use group name and photo
+  - Handle profile fetch errors gracefully
+  - **Files modified:** `lib/context/NotificationContext.jsx`
+
+- [x] **12.6: Test Foreground Notifications**
+  - Test direct conversation notifications ✅
+  - Test group conversation notifications ✅
+  - Test banner auto-dismiss ✅
+  - Test manual dismiss ✅
+  - Test tap to navigate ✅
+  - Test notification silencing in active chat ✅
+  - Test multiple notification queueing ✅
   - **No new files**
 
-**Commit Message:** `feat: implement foreground push notifications`
+- [x] **12.7: Create Documentation**
+  - Document architecture and flow
+  - Add testing checklist
+  - Document Phase 2 implementation plan
+  - **Files created:** `FOREGROUND_NOTIFICATIONS_IMPLEMENTATION.md`
+
+#### Phase 2: Background Local Notifications (📋 FUTURE ENHANCEMENT)
+
+**Note:** Not implemented yet, but framework is ready. To implement:
+
+- [ ] **12.8: Create Local Notification Service** (Future)
+  - Create `lib/notifications/localNotifications.js`
+  - Configure expo-notifications handler
+  - Implement `requestPermissions()` function
+  - Implement `schedulePushNotification()` function
+  - **Files to create:** `lib/notifications/localNotifications.js`
+
+- [ ] **12.9: Add Background Notification Trigger** (Future)
+  - Update NotificationContext line 79-81
+  - Call schedulePushNotification when app is background
+  - **Files to modify:** `lib/context/NotificationContext.jsx`
+
+- [ ] **12.10: Add Notification Tap Handler** (Future)
+  - Update `app/_layout.jsx` initialization
+  - Request permissions on app start
+  - Add Notifications.addNotificationResponseReceivedListener
+  - Navigate to conversation on tap
+  - **Files to modify:** `app/_layout.jsx`
+
+- [ ] **12.11: Test Background Notifications** (Future)
+  - Test on physical device (required for background)
+  - Send message while app is backgrounded
+  - Verify notification appears in system tray
+  - Tap notification and verify navigation
+  - **Testing required on physical device**
 
 ---
 

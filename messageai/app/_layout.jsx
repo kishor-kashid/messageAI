@@ -8,7 +8,9 @@ import { useEffect, useContext, useState, useRef } from 'react';
 import { AppState } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { AuthProvider, AuthContext } from '../lib/context/AuthContext';
+import { NotificationProvider } from '../lib/context/NotificationContext';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
+import { InAppBanner } from '../components/notifications/InAppBanner';
 import { initializeDatabase } from '../lib/database/schema';
 import { setOnline, setOffline } from '../lib/firebase/presence';
 import { useNetworkStatus } from '../lib/hooks/useNetworkStatus';
@@ -178,7 +180,10 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <NavigationGuard />
+      <NotificationProvider>
+        <NavigationGuard />
+        <InAppBanner />
+      </NotificationProvider>
     </AuthProvider>
   );
 }
