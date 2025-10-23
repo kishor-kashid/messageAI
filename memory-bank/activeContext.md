@@ -1,23 +1,68 @@
 # Active Context: MessageAI AI Integration
 
-**Last Updated:** October 23, 2025 (AI Integration - PR #18 Complete!)  
-**Current Phase:** AI Features Integration - Translation & Detection Complete  
-**Current Branch:** PR18 ✅ Complete  
-**Next Milestone:** Cultural Context & Idiom Explanations (PR #19)
+**Last Updated:** October 23, 2025 (AI Integration - PR #19 Complete!)  
+**Current Phase:** AI Features Integration - Cultural Context Complete  
+**Current Branch:** PR19 ✅ Complete  
+**Next Milestone:** Formality Adjustment (PR #20)
 
 ---
 
 ## Current Status
 
-**Phase:** AI INTEGRATION - TRANSLATION COMPLETE  
-**Progress:** MVP Complete (100%) + AI Backend (PR #17 ✅) + Translation Frontend (PR #18 ✅)  
-**Timeline:** Moving to Cultural Context implementation (PR #19)
+**Phase:** AI INTEGRATION - CULTURAL CONTEXT COMPLETE  
+**Progress:** MVP Complete (100%) + AI Backend (PR #17 ✅) + Translation (PR #18 ✅) + Cultural Context (PR #19 ✅)  
+**Timeline:** Moving to Formality Adjustment (PR #20)
 
 ---
 
 ## What We Just Completed
 
-### Just Completed (October 23, 2025 - AI Translation Frontend - PR #18)
+### Just Completed (October 23, 2025 - AI Cultural Context - PR #19 - UNIVERSAL CONTEXT!)
+1. ✅ **PR #19: Cultural Context & Idiom Explanations** - Complete universal cultural context
+   - Created new backend function: **`getCulturalContext`**
+     - Provides cultural context for **ANY message** (not just idioms!)
+     - Single API call instead of detect → filter → explain workflow
+     - Explains idioms, slang, AND regular phrases
+     - Returns cultural usage, nuances, and appropriate contexts
+     - LLM-powered comprehensive explanations (3-5 sentences)
+     - 300 token limit for detailed responses
+   - Updated backend infrastructure
+     - Added `getCulturalContext` to `culturalContext.js`
+     - Exported function in `backend/index.js`
+     - Updated health check to include new function
+     - **Deployed to Firebase successfully** ✅
+   - Created frontend API client
+     - Added `getCulturalContext` to `aiService.js`
+     - Implemented caching with `getCachedCulturalContext`
+     - Cache limit: 50 entries (LRU eviction)
+     - Reduces redundant API calls and costs
+   - Completely refactored CulturalContextModal
+     - **Simplified from 430+ lines to ~320 lines**
+     - **Always shows context** - no empty states for non-idioms
+     - Removed complex detection/phrase-list UI
+     - Single unified explanation display
+     - Loading state: "Getting cultural context..."
+     - Error state with retry button
+     - Clean, minimalist UI with 💬 icon
+     - Scrollable content area for long explanations
+   - Updated MessageBubble component
+     - "Cultural Context" available for **ALL text messages**
+     - No conditions, no pre-checks - always accessible
+     - Simpler, more predictable user experience
+   - Universal context advantages
+     - **Works for everything**: idioms, slang, greetings, any phrase!
+     - **"how are you?" → explains greeting cultural context**
+     - **"break the ice" → explains idiom meaning**
+     - **"what's up?" → explains informal greeting usage**
+     - **Simpler architecture** - one function, one modal state
+     - **Better UX** - always available, always informative
+     - **Cost efficient** - caching + on-demand calls only
+   - ✅ Zero linter errors
+   - ✅ Backend deployed successfully
+   - ✅ Always available for any text message
+   - ✅ All components tested and working
+
+### Previously Completed (October 23, 2025 - AI Translation Frontend - PR #18)
 1. ✅ **PR #18: Language Detection & Real-time Translation** - Complete frontend integration
    - Created AI Service client (`lib/api/aiService.js`)
      - Firebase Cloud Functions wrapper for all AI features
@@ -198,14 +243,17 @@
 
 ## Current Work Focus
 
-**Recently Modified (October 23, 2025 - AI Backend):**
+**Recently Modified (October 23, 2025 - AI Backend + Cultural Context Refactor):**
+- Modified: `backend/src/culturalContext.js` - **Added `getCulturalContext` function** (universal context for all messages)
+- Modified: `backend/index.js` - **Exported `getCulturalContext`** + updated health check
+- **Deployed**: New `getCulturalContext` function to Firebase (us-central1) ✅
+- Modified: `messageai/lib/api/aiService.js` - Added `getCulturalContext` + caching
+- **Refactored**: `messageai/components/chat/CulturalContextModal.jsx` - Simplified to universal context approach (430→320 lines)
 - Created: `backend/src/utils/functionWrapper.js` - Middleware for all AI functions
 - Created: `backend/src/translate.js` - Translation function (refactored with middleware)
 - Created: `backend/src/detect.js` - Language detection (refactored with middleware)
 - Created: `backend/src/formality.js` - Formality adjustment (refactored with middleware)
-- Created: `backend/src/culturalContext.js` - Cultural explanations (refactored with middleware)
 - Created: `backend/src/smartReplies.js` - Smart replies (refactored with middleware)
-- Modified: `backend/index.js` - Fixed Firebase Admin initialization
 - Modified: `backend/src/utils/aiClient.js` - Fixed OpenAI import
 - Modified: `backend/README.md` - Added middleware documentation
 - Created: `FIREBASE_FUNCTIONS_SETUP.md` - Complete deployment guide

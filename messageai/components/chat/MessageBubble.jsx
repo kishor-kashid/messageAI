@@ -125,6 +125,7 @@ function calculateGroupStatus(message, conversation, currentUserId) {
  * @param {Function} [props.onImagePress] - Callback when image is pressed
  * @param {Function} [props.onShowInfo] - Callback to show message info (read receipts)
  * @param {Function} [props.onTranslate] - Callback to translate message
+ * @param {Function} [props.onShowCulturalContext] - Callback to show cultural context
  */
 export function MessageBubble({ 
   message, 
@@ -137,6 +138,7 @@ export function MessageBubble({
   onImagePress,
   onShowInfo,
   onTranslate,
+  onShowCulturalContext,
 }) {
   const { content, imageUrl, timestamp, status: rawStatus = 'sent', detected_language } = message;
   
@@ -151,7 +153,7 @@ export function MessageBubble({
   const hasText = !!content;
 
   // Handle long press for message actions
-  // Shows options: Message Info (for own messages) or Translate (for messages with text)
+  // Shows options: Translate, Cultural Context, Message Info
   const handleLongPress = () => {
     const hasText = !!content;
     
@@ -161,6 +163,11 @@ export function MessageBubble({
     // Add translate option if message has text
     if (hasText && onTranslate) {
       options.push('Translate');
+    }
+    
+    // Add cultural context option if message has text
+    if (hasText && onShowCulturalContext) {
+      options.push('Cultural Context');
     }
     
     // Add message info option for own messages
@@ -181,9 +188,13 @@ export function MessageBubble({
         (buttonIndex) => {
           if (buttonIndex === cancelButtonIndex) return;
           
-          if (options[buttonIndex] === 'Translate' && onTranslate) {
+          const selectedOption = options[buttonIndex];
+          
+          if (selectedOption === 'Translate' && onTranslate) {
             onTranslate(message);
-          } else if (options[buttonIndex] === 'Message Info' && onShowInfo) {
+          } else if (selectedOption === 'Cultural Context' && onShowCulturalContext) {
+            onShowCulturalContext(message);
+          } else if (selectedOption === 'Message Info' && onShowInfo) {
             onShowInfo(message);
           }
         }
@@ -196,6 +207,13 @@ export function MessageBubble({
         buttons.push({
           text: 'Translate',
           onPress: () => onTranslate(message),
+        });
+      }
+      
+      if (hasText && onShowCulturalContext) {
+        buttons.push({
+          text: 'Cultural Context',
+          onPress: () => onShowCulturalContext(message),
         });
       }
       
@@ -216,7 +234,7 @@ export function MessageBubble({
   };
 
   // Show long press for messages with actions
-  const hasActions = (isOwnMessage && onShowInfo) || (!!content && onTranslate);
+  const hasActions = (isOwnMessage && onShowInfo) || (!!content && onTranslate) || (!!content && onShowCulturalContext);
   const BubbleWrapper = hasActions ? TouchableOpacity : View;
   const bubbleProps = hasActions 
     ? { activeOpacity: 0.7, onLongPress: handleLongPress }

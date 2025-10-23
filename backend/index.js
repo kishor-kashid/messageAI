@@ -23,6 +23,7 @@ exports.translateMessage = translate.translateMessage;
 exports.detectLanguage = detect.detectLanguage;
 exports.explainPhrase = culturalContext.explainPhrase;
 exports.detectCulturalReferences = culturalContext.detectCulturalReferences;
+exports.getCulturalContext = culturalContext.getCulturalContext;
 exports.adjustFormality = formality.adjustFormality;
 exports.generateSmartReplies = smartReplies.generateSmartReplies;
 
@@ -36,6 +37,7 @@ exports.healthCheck = functions.https.onRequest((req, res) => {
       "detectLanguage",
       "explainPhrase",
       "detectCulturalReferences",
+      "getCulturalContext",
       "adjustFormality",
       "generateSmartReplies",
     ],

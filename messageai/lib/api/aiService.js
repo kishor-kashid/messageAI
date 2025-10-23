@@ -9,6 +9,7 @@
  * - detectLanguage: Auto-detect language of text
  * - explainPhrase: Explain cultural references and idioms
  * - detectCulturalReferences: Find idioms/slang in text
+ * - getCulturalContext: Get cultural context for any message
  * - adjustFormality: Change message tone/formality
  * - generateSmartReplies: Generate contextual quick replies
  */
@@ -138,6 +139,25 @@ export const detectCulturalReferences = async (text, language = null) => {
 };
 
 /**
+ * Get cultural context and explanation for any message
+ * @param {string} text - Text to get context for
+ * @param {string} language - Optional language code
+ * @returns {Promise<{text: string, culturalContext: string, language: string}>}
+ */
+export const getCulturalContext = async (text, language = null) => {
+  if (!text || text.trim().length === 0) {
+    throw new Error('Text is required.');
+  }
+  
+  const data = { text };
+  if (language) {
+    data.language = language;
+  }
+  
+  return await callFunction('getCulturalContext', data);
+};
+
+/**
  * Adjust formality level of text
  * @param {string} text - Text to adjust
  * @param {string} targetFormality - Target formality ('casual', 'neutral', 'formal', 'professional')
@@ -192,6 +212,11 @@ export const generateSmartReplies = async (lastMessage, targetLanguage = null, r
 const translationCache = new Map();
 
 /**
+ * Cultural context cache for reducing API calls
+ */
+const culturalContextCache = new Map();
+
+/**
  * Get cached translation or fetch new one
  * @param {string} text - Text to translate
  * @param {string} targetLanguage - Target language
@@ -225,6 +250,41 @@ export const getCachedTranslation = async (text, targetLanguage, sourceLanguage 
  */
 export const clearTranslationCache = () => {
   translationCache.clear();
+};
+
+/**
+ * Get cached cultural context or fetch new one
+ * @param {string} text - Text to get context for
+ * @param {string} language - Language code
+ * @returns {Promise<object>} - Cultural context result
+ */
+export const getCachedCulturalContext = async (text, language = null) => {
+  const cacheKey = `${text}:${language || 'auto'}`;
+  
+  // Check cache
+  if (culturalContextCache.has(cacheKey)) {
+    console.log('Cultural context cache hit:', cacheKey);
+    return culturalContextCache.get(cacheKey);
+  }
+  
+  // Fetch new context
+  const context = await getCulturalContext(text, language);
+  
+  // Store in cache (limit cache size to 50 entries)
+  if (culturalContextCache.size >= 50) {
+    const firstKey = culturalContextCache.keys().next().value;
+    culturalContextCache.delete(firstKey);
+  }
+  culturalContextCache.set(cacheKey, context);
+  
+  return context;
+};
+
+/**
+ * Clear cultural context cache
+ */
+export const clearCulturalContextCache = () => {
+  culturalContextCache.clear();
 };
 
 /**
