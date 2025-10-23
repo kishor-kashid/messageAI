@@ -97,3 +97,48 @@ Example: [{"phrase": "break the ice", "startIndex": 10, "endIndex": 23}]`;
       ),
     },
 );
+
+/**
+ * Get cultural context and explanation for any message
+ * Cloud Function: getCulturalContext
+ */
+exports.getCulturalContext = withAIMiddleware(
+    async (data, userId) => {
+      const {text, language} = data;
+      
+      const prompt = `Provide cultural context and explanation for this message:
+
+Message: "${text}"
+Language: ${language || "English"}
+
+Explain:
+1. What this message means culturally
+2. Common usage context (formal/casual/greeting/idiom/slang)
+3. Cultural nuances, customs, or expectations
+4. If it contains idioms or slang, explain them specifically
+5. If it's a simple phrase, explain typical usage and appropriate responses
+
+Keep it friendly, informative, and helpful (3-5 sentences). Focus on helping someone understand both the literal meaning and cultural context.`;
+
+      const explanation = await callOpenAI(prompt, {
+        model: "gpt-4o-mini",
+        temperature: 0.7,
+        maxTokens: 300,
+      });
+      
+      return {
+        text: text,
+        culturalContext: explanation.trim(),
+        language: language,
+        _aiMetadata: {prompt, response: explanation}, // For usage logging
+      };
+    },
+    {
+      functionName: "get_cultural_context",
+      authMessage: "Must be logged in to get cultural context.",
+      validate: validators.combine(
+          validators.requireString("text"),
+          validators.optionalString("language"),
+      ),
+    },
+);

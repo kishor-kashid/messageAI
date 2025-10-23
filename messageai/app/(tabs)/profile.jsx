@@ -15,12 +15,14 @@ import {
   ScrollView,
   Modal,
   ActivityIndicator,
+  FlatList,
 } from 'react-native';
 import { useAuth } from '../../lib/hooks/useAuth';
 import { useImagePicker } from '../../lib/hooks/useImagePicker';
 import { Avatar } from '../../components/ui/Avatar';
-import { updateDisplayName, updateProfilePicture } from '../../lib/firebase/firestore';
+import { updateDisplayName, updateProfilePicture, updateUserProfile } from '../../lib/firebase/firestore';
 import { uploadProfilePicture } from '../../lib/firebase/storage';
+import { SUPPORTED_LANGUAGES } from '../../lib/api/aiService';
 
 export default function ProfileScreen() {
   const { user, userProfile, logout, refreshProfile } = useAuth();
@@ -29,6 +31,8 @@ export default function ProfileScreen() {
   const [editedName, setEditedName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [showLanguagePicker, setShowLanguagePicker] = useState(false);
+  const [isUpdatingLanguage, setIsUpdatingLanguage] = useState(false);
 
   const handleEditPress = () => {
     setEditedName(userProfile?.displayName || '');
@@ -114,6 +118,23 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleLanguageChange = async (langCode) => {
+    try {
+      setIsUpdatingLanguage(true);
+      setShowLanguagePicker(false);
+      
+      await updateUserProfile(user.uid, { preferredLanguage: langCode });
+      await refreshProfile();
+      
+      Alert.alert('Success', 'Preferred language updated successfully');
+    } catch (error) {
+      console.error('Error updating language:', error);
+      Alert.alert('Error', 'Failed to update language. Please try again.');
+    } finally {
+      setIsUpdatingLanguage(false);
+    }
+  };
+
   const handleLogout = () => {
     Alert.alert(
       'Logout',
@@ -137,6 +158,10 @@ export default function ProfileScreen() {
       ]
     );
   };
+
+  const selectedLanguage = SUPPORTED_LANGUAGES.find(
+    lang => lang.code === (userProfile?.preferredLanguage || 'en')
+  );
 
   if (!userProfile) {
     return (
@@ -188,6 +213,26 @@ export default function ProfileScreen() {
           <Text style={styles.infoLabel}>Email</Text>
           <Text style={styles.infoValue}>{userProfile.email}</Text>
         </View>
+
+        <TouchableOpacity 
+          style={styles.infoItem}
+          onPress={() => setShowLanguagePicker(true)}
+          disabled={isUpdatingLanguage}
+        >
+          <Text style={styles.infoLabel}>Preferred Language</Text>
+          <View style={styles.languageValue}>
+            {isUpdatingLanguage ? (
+              <ActivityIndicator size="small" color="#007AFF" />
+            ) : (
+              <>
+                <Text style={styles.infoValue}>
+                  {selectedLanguage ? `${selectedLanguage.flag} ${selectedLanguage.name}` : 'English'}
+                </Text>
+                <Text style={styles.chevron}>›</Text>
+              </>
+            )}
+          </View>
+        </TouchableOpacity>
       </View>
 
       {/* Action Buttons */}
@@ -252,6 +297,49 @@ export default function ProfileScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Language Picker Modal */}
+      <Modal
+        visible={showLanguagePicker}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowLanguagePicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.languageModalContainer}>
+            <View style={styles.languageModalHeader}>
+              <Text style={styles.modalTitle}>Select Language</Text>
+              <TouchableOpacity onPress={() => setShowLanguagePicker(false)}>
+                <Text style={styles.modalCloseButton}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={SUPPORTED_LANGUAGES}
+              keyExtractor={(item) => item.code}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.languageOption,
+                    userProfile?.preferredLanguage === item.code && styles.languageOptionSelected
+                  ]}
+                  onPress={() => handleLanguageChange(item.code)}
+                >
+                  <Text style={styles.languageFlag}>{item.flag}</Text>
+                  <Text style={[
+                    styles.languageName,
+                    userProfile?.preferredLanguage === item.code && styles.languageNameSelected
+                  ]}>
+                    {item.name}
+                  </Text>
+                  {userProfile?.preferredLanguage === item.code && (
+                    <Text style={styles.checkmark}>✓</Text>
+                  )}
+                </TouchableOpacity>
+              )}
+            />
           </View>
         </View>
       </Modal>
@@ -429,6 +517,64 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  languageValue: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  chevron: {
+    fontSize: 20,
+    color: '#C7C7CC',
+    marginLeft: 8,
+  },
+  languageModalContainer: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 20,
+    maxHeight: '70%',
+  },
+  languageModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  modalCloseButton: {
+    fontSize: 24,
+    color: '#007AFF',
+  },
+  languageOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  languageOptionSelected: {
+    backgroundColor: '#F0F8FF',
+  },
+  languageFlag: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  languageName: {
+    fontSize: 16,
+    color: '#333333',
+    flex: 1,
+  },
+  languageNameSelected: {
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  checkmark: {
+    fontSize: 18,
+    color: '#007AFF',
+    fontWeight: 'bold',
   },
 });
 

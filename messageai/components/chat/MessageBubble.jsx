@@ -6,7 +6,10 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator, ActionSheet, Alert, Platform } from 'react-native';
+import LanguageBadge from './LanguageBadge';
+import { translateMessage } from '../../lib/api/aiService';
+import { useAuth } from '../../lib/hooks/useAuth';
 
 /**
  * Format timestamp to time string
@@ -113,6 +116,7 @@ function calculateGroupStatus(message, conversation, currentUserId) {
  * @param {number} props.message.timestamp - Message timestamp
  * @param {string} props.message.status - Message status
  * @param {string} props.message.senderId - Sender user ID
+ * @param {string} [props.message.detected_language] - Detected language code
  * @param {Array<string>} [props.message.readBy] - Array of user IDs who have read the message
  * @param {boolean} props.isOwnMessage - Whether message is from current user
  * @param {boolean} [props.showTimestamp=true] - Whether to show timestamp
@@ -122,6 +126,8 @@ function calculateGroupStatus(message, conversation, currentUserId) {
  * @param {string} [props.currentUserId] - Current user's ID (for group read tracking)
  * @param {Function} [props.onImagePress] - Callback when image is pressed
  * @param {Function} [props.onShowInfo] - Callback to show message info (read receipts)
+ * @param {Function} [props.onTranslate] - Callback to translate message
+ * @param {Function} [props.onShowCulturalContext] - Callback to show cultural context
  */
 export function MessageBubble({ 
   message, 
@@ -133,8 +139,11 @@ export function MessageBubble({
   currentUserId = null,
   onImagePress,
   onShowInfo,
+  onTranslate,
+  onShowCulturalContext,
 }) {
-  const { content, imageUrl, timestamp, status: rawStatus = 'sent' } = message;
+  const { content, imageUrl, timestamp, status: rawStatus = 'sent', detected_language } = message;
+  const { userProfile } = useAuth();
   
   // Calculate actual status (WhatsApp-style for group chats)
   const status = isOwnMessage && isGroupChat 
@@ -143,19 +152,135 @@ export function MessageBubble({
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
   
+  // Inline translation state
+  const [showTranslated, setShowTranslated] = useState(false);
+  const [translatedText, setTranslatedText] = useState('');
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [translationError, setTranslationError] = useState(false);
+  
   const hasImage = !!imageUrl;
   const hasText = !!content;
+  
+  // Check if auto-translation should be available
+  const userLang = userProfile?.preferredLanguage || 'en';
+  const messageLang = detected_language || 'en';
+  const shouldShowTranslateOption = !isOwnMessage && hasText && messageLang !== userLang;
 
-  // Handle long press for message info (WhatsApp-style)
-  // Works for both group and direct chats
-  const handleLongPress = () => {
-    if (isOwnMessage && onShowInfo) {
-      onShowInfo(message);
+  // Handle inline translation toggle
+  const handleTranslationToggle = async () => {
+    if (showTranslated) {
+      // Show original
+      setShowTranslated(false);
+      return;
+    }
+
+    // Show translation
+    if (translatedText) {
+      // Already have translation cached
+      setShowTranslated(true);
+      return;
+    }
+
+    // Need to fetch translation
+    setIsTranslating(true);
+    setTranslationError(false);
+    try {
+      const result = await translateMessage(content, userLang, messageLang);
+      setTranslatedText(result.translatedText);
+      setShowTranslated(true);
+    } catch (error) {
+      console.error('Inline translation failed:', error);
+      setTranslationError(true);
+    } finally {
+      setIsTranslating(false);
     }
   };
 
-  const BubbleWrapper = isOwnMessage && onShowInfo ? TouchableOpacity : View;
-  const bubbleProps = isOwnMessage && onShowInfo 
+  // Handle long press for message actions
+  // Shows options: Translate, Cultural Context, Message Info
+  const handleLongPress = () => {
+    const hasText = !!content;
+    
+    // Build action options
+    const options = [];
+    
+    // Add translate option if message has text
+    if (hasText && onTranslate) {
+      options.push('Translate');
+    }
+    
+    // Add cultural context option if message has text
+    if (hasText && onShowCulturalContext) {
+      options.push('Cultural Context');
+    }
+    
+    // Add message info option for own messages
+    if (isOwnMessage && onShowInfo) {
+      options.push('Message Info');
+    }
+    
+    options.push('Cancel');
+    const cancelButtonIndex = options.length - 1;
+    
+    // Show action sheet on iOS, Alert on Android
+    if (Platform.OS === 'ios' && ActionSheet) {
+      ActionSheet.showActionSheetWithOptions(
+        {
+          options,
+          cancelButtonIndex,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === cancelButtonIndex) return;
+          
+          const selectedOption = options[buttonIndex];
+          
+          if (selectedOption === 'Translate' && onTranslate) {
+            onTranslate(message);
+          } else if (selectedOption === 'Cultural Context' && onShowCulturalContext) {
+            onShowCulturalContext(message);
+          } else if (selectedOption === 'Message Info' && onShowInfo) {
+            onShowInfo(message);
+          }
+        }
+      );
+    } else {
+      // Android fallback using Alert
+      const buttons = [];
+      
+      if (hasText && onTranslate) {
+        buttons.push({
+          text: 'Translate',
+          onPress: () => onTranslate(message),
+        });
+      }
+      
+      if (hasText && onShowCulturalContext) {
+        buttons.push({
+          text: 'Cultural Context',
+          onPress: () => onShowCulturalContext(message),
+        });
+      }
+      
+      if (isOwnMessage && onShowInfo) {
+        buttons.push({
+          text: 'Message Info',
+          onPress: () => onShowInfo(message),
+        });
+      }
+      
+      buttons.push({
+        text: 'Cancel',
+        style: 'cancel',
+      });
+      
+      Alert.alert('Message Actions', null, buttons);
+    }
+  };
+
+  // Show long press for messages with actions
+  const hasActions = (isOwnMessage && onShowInfo) || (!!content && onTranslate) || (!!content && onShowCulturalContext);
+  const BubbleWrapper = hasActions ? TouchableOpacity : View;
+  const bubbleProps = hasActions 
     ? { activeOpacity: 0.7, onLongPress: handleLongPress }
     : {};
 
@@ -224,13 +349,58 @@ export function MessageBubble({
           
           {/* Text content */}
           {hasText && (
-            <Text style={[
-              styles.messageText,
-              isOwnMessage ? styles.ownMessageText : styles.otherMessageText,
-              hasImage && styles.messageTextWithImage
-            ]}>
-              {content}
-            </Text>
+            <>
+              <Text style={[
+                styles.messageText,
+                isOwnMessage ? styles.ownMessageText : styles.otherMessageText,
+                hasImage && styles.messageTextWithImage
+              ]}>
+                {showTranslated ? translatedText : content}
+              </Text>
+              
+              {/* Language Badge */}
+              {detected_language && (
+                <LanguageBadge 
+                  languageCode={detected_language} 
+                  isOwnMessage={isOwnMessage}
+                />
+              )}
+
+              {/* Inline Translation Toggle */}
+              {shouldShowTranslateOption && (
+                <TouchableOpacity 
+                  onPress={handleTranslationToggle}
+                  disabled={isTranslating}
+                  style={styles.translationToggle}
+                >
+                  {isTranslating ? (
+                    <View style={styles.translationLoading}>
+                      <ActivityIndicator size="small" color={isOwnMessage ? "#FFFFFF" : "#007AFF"} />
+                      <Text style={[
+                        styles.translationText,
+                        isOwnMessage ? styles.ownTranslationText : styles.otherTranslationText
+                      ]}>
+                        Translating...
+                      </Text>
+                    </View>
+                  ) : translationError ? (
+                    <Text style={[
+                      styles.translationText,
+                      styles.translationErrorText
+                    ]}>
+                      Translation failed. Tap to retry
+                    </Text>
+                  ) : (
+                    <Text style={[
+                      styles.translationText,
+                      isOwnMessage ? styles.ownTranslationText : styles.otherTranslationText
+                    ]}>
+                      {showTranslated ? 'See original' : 'See translation'}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              )}
+            </>
           )}
           
           {/* Show status text for queued/failed messages */}
@@ -334,6 +504,28 @@ const styles = StyleSheet.create({
   },
   otherMessageText: {
     color: '#000000',
+  },
+  translationToggle: {
+    marginTop: 6,
+    alignSelf: 'flex-start',
+  },
+  translationLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  translationText: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    textDecorationLine: 'underline',
+  },
+  ownTranslationText: {
+    color: 'rgba(255, 255, 255, 0.9)',
+  },
+  otherTranslationText: {
+    color: '#007AFF',
+  },
+  translationErrorText: {
+    color: '#FF3B30',
   },
   footer: {
     flexDirection: 'row',

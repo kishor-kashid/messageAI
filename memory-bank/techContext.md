@@ -1,6 +1,6 @@
 # Tech Context: MessageAI
 
-**Last Updated:** October 23, 2025 (AI Integration - Backend Complete)
+**Last Updated:** October 23, 2025 (AI Integration - Frontend Complete with Translation)
 
 ---
 
@@ -58,10 +58,10 @@
    - Foreground notifications only for MVP
 
 5. **Cloud Functions** ✅ **NOW DEPLOYED**
-   - AI feature processing (translation, detection, etc.)
+   - AI feature processing (translation, detection, cultural context, etc.)
    - Secure OpenAI API proxy
    - Rate limiting and usage tracking
-   - 7 functions deployed and operational
+   - 8 functions deployed and operational
 
 ---
 
@@ -84,22 +84,30 @@
    - Output: explanation
    - Model: GPT-4o-mini, Temperature: 0.7, Max tokens: 150
 
-4. **detectCulturalReferences** - Find idioms/slang
+4. **detectCulturalReferences** - Find idioms/slang (legacy)
    - Input: text, language (optional)
    - Output: references array with phrase, startIndex, endIndex
    - Model: GPT-4o-mini, Temperature: 0.3, Max tokens: 200
+   - Note: Superseded by getCulturalContext for most use cases
 
-5. **adjustFormality** - Change message tone
+5. **getCulturalContext** - Universal cultural context (NEW!)
+   - Input: text, language (optional)
+   - Output: text, culturalContext (comprehensive explanation), language
+   - Explains cultural meaning, usage, idioms, slang, or general context
+   - Works for ANY message (not just idioms/slang)
+   - Model: GPT-4o-mini, Temperature: 0.7, Max tokens: 300
+
+6. **adjustFormality** - Change message tone
    - Input: text, targetFormality (casual/neutral/formal/professional), language
    - Output: rewrittenText
    - Model: GPT-4o-mini, Temperature: 0.7, Max tokens: 200
 
-6. **generateSmartReplies** - Smart reply suggestions
+7. **generateSmartReplies** - Smart reply suggestions
    - Input: lastMessage, targetLanguage (optional), replyStyle (optional)
    - Output: replies array (3 suggestions)
    - Model: GPT-4o-mini, Temperature: 0.8, Max tokens: 250
 
-7. **healthCheck** - Service health verification
+8. **healthCheck** - Service health verification
    - HTTP endpoint (not callable)
    - Returns status and function list
 

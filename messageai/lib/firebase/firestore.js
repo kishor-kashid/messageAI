@@ -529,7 +529,7 @@ export async function deleteConversation(conversationId) {
  */
 export async function sendMessage(messageData) {
   try {
-    const { conversationId, senderId, content = null, imageUrl = null, type = 'text' } = messageData;
+    const { conversationId, senderId, content = null, imageUrl = null, type = 'text', detected_language = 'en' } = messageData;
 
     // At least one of content or imageUrl must be provided
     if ((!content || content.trim() === '') && !imageUrl) {
@@ -548,6 +548,7 @@ export async function sendMessage(messageData) {
       content: content ? content.trim() : '', // Use empty string, never null
       imageUrl: imageUrl || null,
       type,
+      detected_language,
       timestamp,
       status: 'sent',
       readBy: [], // Track which users have read the message

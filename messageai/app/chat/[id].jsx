@@ -34,6 +34,8 @@ import { ConversationHeader } from '../../components/conversations/ConversationH
 import { TypingIndicator } from '../../components/chat/TypingIndicator';
 import { GroupParticipantsModal } from '../../components/chat/GroupParticipantsModal';
 import { ReadReceiptsModal } from '../../components/chat/ReadReceiptsModal';
+import TranslationModal from '../../components/chat/TranslationModal';
+import CulturalContextModal from '../../components/chat/CulturalContextModal';
 
 export default function ChatScreen() {
   const { id: conversationId } = useLocalSearchParams();
@@ -49,6 +51,10 @@ export default function ChatScreen() {
   const [showGroupParticipants, setShowGroupParticipants] = useState(false);
   const [firstUnreadMessageId, setFirstUnreadMessageId] = useState(null);
   const [selectedMessageForInfo, setSelectedMessageForInfo] = useState(null);
+  const [showTranslation, setShowTranslation] = useState(false);
+  const [selectedMessageForTranslation, setSelectedMessageForTranslation] = useState(null);
+  const [showCulturalContext, setShowCulturalContext] = useState(false);
+  const [selectedMessageForCulturalContext, setSelectedMessageForCulturalContext] = useState(null);
   
   const {
     messages,
@@ -276,6 +282,30 @@ export default function ChatScreen() {
     setSelectedMessageForInfo(null);
   };
 
+  // Translation handlers
+  const handleTranslate = (message) => {
+    console.log('🌍 Translating message:', message.id);
+    setSelectedMessageForTranslation(message);
+    setShowTranslation(true);
+  };
+
+  const handleCloseTranslation = () => {
+    setShowTranslation(false);
+    setSelectedMessageForTranslation(null);
+  };
+
+  // Cultural context handlers
+  const handleShowCulturalContext = (message) => {
+    console.log('🎭 Showing cultural context for message:', message.id);
+    setSelectedMessageForCulturalContext(message);
+    setShowCulturalContext(true);
+  };
+
+  const handleCloseCulturalContext = () => {
+    setShowCulturalContext(false);
+    setSelectedMessageForCulturalContext(null);
+  };
+
   // Cleanup typing timeout on unmount
   useEffect(() => {
     return () => {
@@ -332,6 +362,8 @@ export default function ChatScreen() {
             conversation={conversation}
             firstUnreadMessageId={firstUnreadMessageId}
             onShowMessageInfo={handleShowMessageInfo}
+            onTranslate={handleTranslate}
+            onShowCulturalContext={handleShowCulturalContext}
           />
           
           {/* Typing Indicator */}
@@ -379,6 +411,21 @@ export default function ChatScreen() {
           : (otherParticipant ? { [otherParticipant.id]: otherParticipant } : {})
         }
         currentUserId={user?.uid}
+      />
+
+      {/* Translation Modal */}
+      <TranslationModal
+        visible={showTranslation}
+        onClose={handleCloseTranslation}
+        originalText={selectedMessageForTranslation?.content || ''}
+        sourceLanguage={selectedMessageForTranslation?.detected_language}
+      />
+
+      {/* Cultural Context Modal */}
+      <CulturalContextModal
+        visible={showCulturalContext}
+        onClose={handleCloseCulturalContext}
+        message={selectedMessageForCulturalContext}
       />
     </SafeAreaView>
   );
