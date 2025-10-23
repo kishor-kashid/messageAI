@@ -21,6 +21,7 @@ import { formatTimestamp } from '../../lib/utils/formatters';
  * @param {Object} [props.conversation=null] - Conversation object (for group read tracking)
  * @param {string} [props.firstUnreadMessageId=null] - ID of first unread message for scroll positioning
  * @param {Function} [props.onShowMessageInfo] - Callback to show message info (read receipts)
+ * @param {Function} [props.onTranslate] - Callback to translate message
  */
 export function MessageList({ 
   messages, 
@@ -32,6 +33,7 @@ export function MessageList({
   conversation = null,
   firstUnreadMessageId = null,
   onShowMessageInfo,
+  onTranslate,
 }) {
   const flatListRef = useRef(null);
   const previousMessageCount = useRef(messages.length);
@@ -197,6 +199,7 @@ export function MessageList({
           currentUserId={currentUserId}
           onImagePress={handleImagePress}
           onShowInfo={onShowMessageInfo}
+          onTranslate={onTranslate}
         />
       </View>
     );

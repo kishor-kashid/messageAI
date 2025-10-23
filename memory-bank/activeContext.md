@@ -1,23 +1,65 @@
 # Active Context: MessageAI AI Integration
 
-**Last Updated:** October 23, 2025 (AI Integration & Backend Optimization)  
-**Current Phase:** AI Features Integration - Backend Complete  
-**Current Branch:** PR17 (Backend AI Functions) ✅ Complete  
-**Next Milestone:** Frontend AI Integration (PR #18)
+**Last Updated:** October 23, 2025 (AI Integration - PR #18 Complete!)  
+**Current Phase:** AI Features Integration - Translation & Detection Complete  
+**Current Branch:** PR18 ✅ Complete  
+**Next Milestone:** Cultural Context & Idiom Explanations (PR #19)
 
 ---
 
 ## Current Status
 
-**Phase:** AI INTEGRATION - BACKEND COMPLETE  
-**Progress:** MVP Complete (100%) + AI Backend (PR #17 Complete)  
-**Timeline:** Moving to AI feature implementation (International Communicator persona)
+**Phase:** AI INTEGRATION - TRANSLATION COMPLETE  
+**Progress:** MVP Complete (100%) + AI Backend (PR #17 ✅) + Translation Frontend (PR #18 ✅)  
+**Timeline:** Moving to Cultural Context implementation (PR #19)
 
 ---
 
 ## What We Just Completed
 
-### Just Completed (October 23, 2025 - AI Integration Backend)
+### Just Completed (October 23, 2025 - AI Translation Frontend - PR #18)
+1. ✅ **PR #18: Language Detection & Real-time Translation** - Complete frontend integration
+   - Created AI Service client (`lib/api/aiService.js`)
+     - Firebase Cloud Functions wrapper for all AI features
+     - Automatic error handling and caching
+     - 15 supported languages with flags
+     - Translation cache to reduce API costs
+   - Database schema updates
+     - Added `detected_language` column to messages table
+     - Migration script for existing databases
+     - Updated saveMessage and bulkSaveMessages functions
+   - Created LanguageBadge component
+     - Displays language flag emoji and code
+     - Shows on messages (except English)
+     - Styled for own vs other messages
+   - Created TranslationModal component
+     - Full-screen translation UI
+     - 15 language options with flags
+     - Horizontal scrolling language selector
+     - Auto-translates on language selection
+     - Loading states and error handling
+     - Retry functionality
+   - Updated MessageBubble component
+     - Long-press menu for "Translate" and "Message Info"
+     - Shows language badge for detected languages
+     - Platform-specific action sheets (iOS/Android)
+     - Integrated translation callback
+   - Updated useMessages hook
+     - Auto-detect language on send
+     - Non-blocking detection (doesn't fail send)
+     - Defaults to 'en' on detection failure
+     - Adds detected_language to all messages
+   - Updated Firestore sendMessage
+     - Accepts detected_language parameter
+     - Stores in Firestore message documents
+   - Integrated into chat screen
+     - Added TranslationModal to chat UI
+     - Wired up translation handlers
+     - Passed callbacks through MessageList
+   - ✅ Zero linter errors
+   - ✅ All components tested and working
+
+### Previously Completed (October 23, 2025 - AI Integration Backend)
 1. ✅ **PR #17: Backend AI Cloud Functions** - Complete AI infrastructure
    - Deployed 7 Firebase Cloud Functions for AI features
    - Implemented middleware pattern for code optimization

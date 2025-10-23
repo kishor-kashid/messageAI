@@ -21,6 +21,7 @@ import {
 } from '../database/messages';
 import { addToQueue, getQueuedMessagesForConversation } from '../sync/offlineQueue';
 import { checkIsOnline } from './useNetworkStatus';
+import { detectLanguage } from '../api/aiService';
 
 /**
  * Custom hook for message management in a conversation
@@ -182,6 +183,19 @@ export function useMessages(conversationId) {
 
     setSending(true);
 
+    // Detect language if content is provided (don't block sending on detection failure)
+    let detectedLanguage = 'en'; // Default to English
+    if (content && content.trim().length > 0) {
+      try {
+        const languageResult = await detectLanguage(content.trim());
+        detectedLanguage = languageResult.languageCode || 'en';
+        console.log(`🌍 Detected language: ${detectedLanguage}`);
+      } catch (err) {
+        console.warn('Language detection failed, defaulting to English:', err);
+        // Continue with default language rather than failing the send
+      }
+    }
+
     // Create optimistic message
     const optimisticId = `temp-${Date.now()}-${Math.random()}`;
     const optimisticMessage = {
@@ -191,6 +205,7 @@ export function useMessages(conversationId) {
       content: content ? content.trim() : '', // Always use empty string, never null
       imageUrl: imageUrl || null,
       type: imageUrl ? 'image' : 'text',
+      detected_language: detectedLanguage,
       timestamp: Date.now(),
       status: 'sending',
       metadata: null,
@@ -230,6 +245,7 @@ export function useMessages(conversationId) {
         content: content ? content.trim() : '', // Use empty string, never null
         imageUrl: imageUrl || null,
         type: imageUrl ? 'image' : 'text',
+        detected_language: detectedLanguage,
       });
 
       // 5. Remove optimistic message (Firestore subscription will add real one)

@@ -71,6 +71,7 @@ export async function initializeDatabase() {
         timestamp INTEGER NOT NULL,
         status TEXT NOT NULL,
         type TEXT DEFAULT 'text',
+        detected_language TEXT DEFAULT 'en',
         metadata TEXT,
         createdAt INTEGER DEFAULT (strftime('%s', 'now') * 1000),
         updatedAt INTEGER DEFAULT (strftime('%s', 'now') * 1000),
@@ -86,6 +87,17 @@ export async function initializeDatabase() {
       // Column already exists or other error - safe to ignore
       if (!err.message.includes('duplicate column')) {
         console.warn('⚠️ Could not add imageUrl column:', err.message);
+      }
+    }
+
+    // Migration: Add detected_language column if it doesn't exist (for existing databases)
+    try {
+      db.execSync(`ALTER TABLE messages ADD COLUMN detected_language TEXT DEFAULT 'en';`);
+      console.log('✅ Added detected_language column to messages table');
+    } catch (err) {
+      // Column already exists or other error - safe to ignore
+      if (!err.message.includes('duplicate column')) {
+        console.warn('⚠️ Could not add detected_language column:', err.message);
       }
     }
 
