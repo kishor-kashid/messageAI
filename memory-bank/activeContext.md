@@ -57,13 +57,23 @@
      - **Simpler architecture** - one function, one modal state
      - **Better UX** - always available, always informative
      - **Cost efficient** - caching + on-demand calls only
+   - **NEW: Inline translation for cultural context!**
+     - Cultural context displayed in English by default
+     - If user's preferred language ≠ English: "See translation" link appears
+     - Tap to translate explanation to user's preferred language
+     - Tap "See original (English)" to switch back
+     - Translation cached in modal state (no repeated API calls)
+     - Loading state with spinner: "Translating..."
+     - Error handling: "Translation failed. Tap to retry"
+     - Seamless toggle between English and user's language
    - ✅ Zero linter errors
    - ✅ Backend deployed successfully
    - ✅ Always available for any text message
    - ✅ All components tested and working
+   - ✅ Cultural explanations now translatable!
 
-### Previously Completed (October 23, 2025 - AI Translation Frontend - PR #18)
-1. ✅ **PR #18: Language Detection & Real-time Translation** - Complete frontend integration
+### Previously Completed (October 23, 2025 - AI Translation Frontend - PR #18 ENHANCED!)
+1. ✅ **PR #18: Language Detection & Real-time Translation** - Complete frontend integration + INLINE AUTO-TRANSLATION!
    - Created AI Service client (`lib/api/aiService.js`)
      - Firebase Cloud Functions wrapper for all AI features
      - Automatic error handling and caching
@@ -103,6 +113,37 @@
      - Passed callbacks through MessageList
    - ✅ Zero linter errors
    - ✅ All components tested and working
+   
+   **MAJOR ENHANCEMENT - Inline Auto-Translation:**
+   - Added language preference selection during onboarding (REQUIRED)
+     - Modal picker with all 16 supported languages
+     - Flag emoji + language name display
+     - Stored in user profile as `preferredLanguage`
+     - Defaults to English if not set
+   - Added language preference to profile screen
+     - View current language with flag
+     - Tap to change language anytime
+     - Updates reflected immediately
+   - Implemented inline real-time translation in messages
+     - **No delay**: Messages display immediately as received
+     - **Auto-detection**: Compares message language vs. user's preferred language
+     - **Smart toggle**: Shows "See translation" link only for foreign messages
+     - **Inline display**: Click to translate, click again to see original
+     - **Caching**: Translations cached per message (no redundant API calls)
+     - **Loading states**: Shows "Translating..." with spinner
+     - **Error handling**: "Translation failed. Tap to retry"
+   - User flow:
+     1. User receives message in Spanish (user prefers English)
+     2. Message displays immediately in Spanish (no delay!)
+     3. Small "See translation" link appears below message
+     4. User taps → message translates inline to English
+     5. Link changes to "See original"
+     6. User can toggle back and forth instantly
+   - Respects existing features:
+     - Language badge still shows detected language
+     - Long-press translation modal still available
+     - Cultural context still accessible
+   - ✅ Perfect UX: No blocking, instant display, on-demand translation
 
 ### Previously Completed (October 23, 2025 - AI Integration Backend)
 1. ✅ **PR #17: Backend AI Cloud Functions** - Complete AI infrastructure
@@ -243,7 +284,13 @@
 
 ## Current Work Focus
 
-**Recently Modified (October 23, 2025 - AI Backend + Cultural Context Refactor):**
+**Recently Modified (October 23, 2025 - AI Translation Enhanced + Cultural Context Translation):**
+- **MAJOR ENHANCEMENT**: Inline auto-translation feature added!
+- Modified: `messageai/app/(auth)/onboarding.jsx` - Added required language preference picker
+- Modified: `messageai/lib/hooks/useAuth.js` - Store `preferredLanguage` in profile
+- Modified: `messageai/app/(tabs)/profile.jsx` - Added language selector with modal picker
+- Modified: `messageai/components/chat/MessageBubble.jsx` - **Inline translation toggle** (See translation/See original)
+- **NEW**: Modified: `messageai/components/chat/CulturalContextModal.jsx` - **Added inline translation for cultural context!**
 - Modified: `backend/src/culturalContext.js` - **Added `getCulturalContext` function** (universal context for all messages)
 - Modified: `backend/index.js` - **Exported `getCulturalContext`** + updated health check
 - **Deployed**: New `getCulturalContext` function to Firebase (us-central1) ✅

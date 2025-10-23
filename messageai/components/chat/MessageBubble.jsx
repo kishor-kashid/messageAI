@@ -8,6 +8,8 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator, ActionSheet, Alert, Platform } from 'react-native';
 import LanguageBadge from './LanguageBadge';
+import { translateMessage } from '../../lib/api/aiService';
+import { useAuth } from '../../lib/hooks/useAuth';
 
 /**
  * Format timestamp to time string
@@ -141,6 +143,7 @@ export function MessageBubble({
   onShowCulturalContext,
 }) {
   const { content, imageUrl, timestamp, status: rawStatus = 'sent', detected_language } = message;
+  const { userProfile } = useAuth();
   
   // Calculate actual status (WhatsApp-style for group chats)
   const status = isOwnMessage && isGroupChat 
@@ -149,8 +152,49 @@ export function MessageBubble({
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
   
+  // Inline translation state
+  const [showTranslated, setShowTranslated] = useState(false);
+  const [translatedText, setTranslatedText] = useState('');
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [translationError, setTranslationError] = useState(false);
+  
   const hasImage = !!imageUrl;
   const hasText = !!content;
+  
+  // Check if auto-translation should be available
+  const userLang = userProfile?.preferredLanguage || 'en';
+  const messageLang = detected_language || 'en';
+  const shouldShowTranslateOption = !isOwnMessage && hasText && messageLang !== userLang;
+
+  // Handle inline translation toggle
+  const handleTranslationToggle = async () => {
+    if (showTranslated) {
+      // Show original
+      setShowTranslated(false);
+      return;
+    }
+
+    // Show translation
+    if (translatedText) {
+      // Already have translation cached
+      setShowTranslated(true);
+      return;
+    }
+
+    // Need to fetch translation
+    setIsTranslating(true);
+    setTranslationError(false);
+    try {
+      const result = await translateMessage(content, userLang, messageLang);
+      setTranslatedText(result.translatedText);
+      setShowTranslated(true);
+    } catch (error) {
+      console.error('Inline translation failed:', error);
+      setTranslationError(true);
+    } finally {
+      setIsTranslating(false);
+    }
+  };
 
   // Handle long press for message actions
   // Shows options: Translate, Cultural Context, Message Info
@@ -311,7 +355,7 @@ export function MessageBubble({
                 isOwnMessage ? styles.ownMessageText : styles.otherMessageText,
                 hasImage && styles.messageTextWithImage
               ]}>
-                {content}
+                {showTranslated ? translatedText : content}
               </Text>
               
               {/* Language Badge */}
@@ -320,6 +364,41 @@ export function MessageBubble({
                   languageCode={detected_language} 
                   isOwnMessage={isOwnMessage}
                 />
+              )}
+
+              {/* Inline Translation Toggle */}
+              {shouldShowTranslateOption && (
+                <TouchableOpacity 
+                  onPress={handleTranslationToggle}
+                  disabled={isTranslating}
+                  style={styles.translationToggle}
+                >
+                  {isTranslating ? (
+                    <View style={styles.translationLoading}>
+                      <ActivityIndicator size="small" color={isOwnMessage ? "#FFFFFF" : "#007AFF"} />
+                      <Text style={[
+                        styles.translationText,
+                        isOwnMessage ? styles.ownTranslationText : styles.otherTranslationText
+                      ]}>
+                        Translating...
+                      </Text>
+                    </View>
+                  ) : translationError ? (
+                    <Text style={[
+                      styles.translationText,
+                      styles.translationErrorText
+                    ]}>
+                      Translation failed. Tap to retry
+                    </Text>
+                  ) : (
+                    <Text style={[
+                      styles.translationText,
+                      isOwnMessage ? styles.ownTranslationText : styles.otherTranslationText
+                    ]}>
+                      {showTranslated ? 'See original' : 'See translation'}
+                    </Text>
+                  )}
+                </TouchableOpacity>
               )}
             </>
           )}
@@ -425,6 +504,28 @@ const styles = StyleSheet.create({
   },
   otherMessageText: {
     color: '#000000',
+  },
+  translationToggle: {
+    marginTop: 6,
+    alignSelf: 'flex-start',
+  },
+  translationLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  translationText: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    textDecorationLine: 'underline',
+  },
+  ownTranslationText: {
+    color: 'rgba(255, 255, 255, 0.9)',
+  },
+  otherTranslationText: {
+    color: '#007AFF',
+  },
+  translationErrorText: {
+    color: '#FF3B30',
   },
   footer: {
     flexDirection: 'row',

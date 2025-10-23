@@ -14,7 +14,8 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { getCachedCulturalContext } from '../../lib/api/aiService';
+import { getCachedCulturalContext, translateMessage } from '../../lib/api/aiService';
+import { useAuth } from '../../lib/hooks/useAuth';
 
 /**
  * CulturalContextModal Component
@@ -24,9 +25,16 @@ import { getCachedCulturalContext } from '../../lib/api/aiService';
  * @param {Object} props.message - Message object containing the text
  */
 const CulturalContextModal = ({ visible, onClose, message }) => {
+  const { userProfile } = useAuth();
   const [culturalContext, setCulturalContext] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  
+  // Translation state
+  const [showTranslated, setShowTranslated] = useState(false);
+  const [translatedContext, setTranslatedContext] = useState('');
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [translationError, setTranslationError] = useState(false);
 
   // Fetch cultural context when modal opens
   useEffect(() => {
@@ -67,8 +75,47 @@ const CulturalContextModal = ({ visible, onClose, message }) => {
       setCulturalContext('');
       setError(null);
       setLoading(false);
+      setShowTranslated(false);
+      setTranslatedContext('');
+      setIsTranslating(false);
+      setTranslationError(false);
     }
   }, [visible]);
+
+  // Handle context translation toggle
+  const handleContextTranslationToggle = async () => {
+    const userLang = userProfile?.preferredLanguage || 'en';
+    
+    // If already showing translated, switch back to original
+    if (showTranslated) {
+      setShowTranslated(false);
+      return;
+    }
+
+    // If already have translation cached, just show it
+    if (translatedContext) {
+      setShowTranslated(true);
+      return;
+    }
+
+    // Need to fetch translation
+    setIsTranslating(true);
+    setTranslationError(false);
+    try {
+      const result = await translateMessage(culturalContext, userLang, 'en');
+      setTranslatedContext(result.translatedText);
+      setShowTranslated(true);
+    } catch (err) {
+      console.error('Failed to translate cultural context:', err);
+      setTranslationError(true);
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
+  // Check if translation should be available
+  const userLang = userProfile?.preferredLanguage || 'en';
+  const shouldShowTranslation = userLang !== 'en' && culturalContext && !loading && !error;
 
   const handleClose = () => {
     onClose();
@@ -149,7 +196,35 @@ const CulturalContextModal = ({ visible, onClose, message }) => {
                   <Text style={styles.contextIcon}>💬</Text>
                   <Text style={styles.contextTitle}>Cultural Context</Text>
                 </View>
-                <Text style={styles.contextText}>{culturalContext}</Text>
+                <Text style={styles.contextText}>
+                  {showTranslated ? translatedContext : culturalContext}
+                </Text>
+                
+                {/* Translation Toggle */}
+                {shouldShowTranslation && (
+                  <TouchableOpacity 
+                    onPress={handleContextTranslationToggle}
+                    disabled={isTranslating}
+                    style={styles.contextTranslationToggle}
+                  >
+                    {isTranslating ? (
+                      <View style={styles.contextTranslationLoading}>
+                        <ActivityIndicator size="small" color="#007AFF" />
+                        <Text style={styles.contextTranslationText}>
+                          Translating...
+                        </Text>
+                      </View>
+                    ) : translationError ? (
+                      <Text style={[styles.contextTranslationText, styles.contextTranslationError]}>
+                        Translation failed. Tap to retry
+                      </Text>
+                    ) : (
+                      <Text style={styles.contextTranslationText}>
+                        {showTranslated ? 'See original (English)' : 'See translation'}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                )}
               </View>
             ) : (
               <View style={styles.emptyState}>
@@ -309,6 +384,27 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     color: '#333333',
+  },
+  contextTranslationToggle: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+  },
+  contextTranslationLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  contextTranslationText: {
+    fontSize: 12,
+    color: '#007AFF',
+    fontStyle: 'italic',
+    textDecorationLine: 'underline',
+    marginLeft: 8,
+  },
+  contextTranslationError: {
+    color: '#FF3B30',
+    marginLeft: 0,
   },
   doneButton: {
     backgroundColor: '#007AFF',

@@ -1,8 +1,8 @@
 # Progress: MessageAI
 
-**Last Updated:** October 23, 2025 (AI Integration - Backend Complete!)  
-**Current Phase:** AI Features Integration - Backend Deployed  
-**Overall Progress:** MVP 100% + PR #17 (AI Backend) Complete
+**Last Updated:** October 23, 2025 (AI Integration - Frontend Complete!)  
+**Current Phase:** AI Features Integration - Frontend with Inline Translation Complete  
+**Overall Progress:** MVP 100% + PR #17 (AI Backend) + PR #18 (Translation Enhanced) + PR #19 (Cultural Context + Translation) Complete
 
 ---
 
@@ -21,6 +21,39 @@ Documentation:  ██████████ 90% (Memory Bank fully updated)
 ---
 
 ## What Works ✅
+
+### AI Translation & Cultural Context (October 23, 2025 - AI Integration Complete!)
+- ✅ **Language Detection & Real-time Translation (PR #18 - ENHANCED!)**
+  - Automatic language detection on message send (16 languages supported)
+  - Language badge display with flag emoji on all messages
+  - Translation modal with language picker (long-press → "Translate")
+  - **Required language preference selection during onboarding**
+  - **Language selector in profile (update anytime)**
+  - **Inline auto-translation for foreign messages**
+    - Messages display immediately (zero delay)
+    - "See translation" link for foreign messages only
+    - Tap to translate inline, tap again to see original
+    - Translation caching (no redundant API calls)
+    - Loading states and error handling
+  - AI Service client with intelligent caching
+  - Firebase Cloud Functions integration (translateMessage, detectLanguage)
+- ✅ **Cultural Context & Idiom Explanations (PR #19 - WITH TRANSLATION!)**
+  - Universal cultural context for ANY message
+  - "Cultural Context" option in message long-press menu (always available)
+  - Clean modal interface with comprehensive explanations
+  - Works for idioms, slang, greetings, casual phrases, any message
+  - **Inline translation for cultural context explanations**
+    - Context provided in English by default
+    - "See translation" link for non-English speakers
+    - Tap to translate explanation to user's preferred language
+    - Tap "See original (English)" to switch back
+    - Translation caching in modal state
+  - Examples: "How are you?", "Break the ice", "What's up?", etc.
+  - Backend function: `getCulturalContext` (deployed to Firebase)
+  - **Complete 3-layer translation system**:
+    1. Message inline translation ("See translation" in chat)
+    2. Message modal translation (long-press → "Translate")
+    3. Cultural context translation (in explanation modal)
 
 ### Advanced Features (October 22, 2025 - Post-MVP)
 - ✅ WhatsApp-style read receipts for group chats
@@ -506,11 +539,12 @@ Documentation:  ██████████ 90% (Memory Bank fully updated)
 ### ✅ PR #17: AI Backend Cloud Functions
 **Completed:** October 23, 2025  
 **Key Achievements:**
-- **Deployed 7 Firebase Cloud Functions** for AI features
+- **Deployed 8 Firebase Cloud Functions** for AI features
   - `translateMessage` - Real-time translation to any language
   - `detectLanguage` - Automatic language detection (ISO codes)
   - `explainPhrase` - Cultural phrase/idiom explanations
   - `detectCulturalReferences` - Find cultural references in text
+  - `getCulturalContext` - Universal cultural context for any message (NEW!)
   - `adjustFormality` - Change message formality (casual/neutral/formal/professional)
   - `generateSmartReplies` - Context-aware smart reply suggestions
   - `healthCheck` - Service health verification endpoint
@@ -528,7 +562,7 @@ Documentation:  ██████████ 90% (Memory Bank fully updated)
   - Usage logging in Firestore `ai_usage_log` collection
   - Translation caching database schema ready (SQLite)
 - **Deployment & Testing**
-  - All 7 functions deployed to Firebase (messageai-c7214)
+  - All 8 functions deployed to Firebase (messageai-c7214)
   - Health check passing: HTTP 200 OK
   - Function logs show no errors
   - All functions tested and operational
@@ -538,6 +572,112 @@ Documentation:  ██████████ 90% (Memory Bank fully updated)
   - Updated `backend/README.md` - Added middleware pattern documentation
   - Created `.gitignore` entries for Firebase debug logs
   - Updated `firebase.json` to point to `backend` directory
+
+### ✅ PR #18: Language Detection & Real-time Translation (ENHANCED!)
+**Completed:** October 23, 2025  
+**Key Achievements:**
+- **Created AI Service Client** (`lib/api/aiService.js`)
+  - Firebase Cloud Functions wrapper for all AI features
+  - Automatic error handling and intelligent caching
+  - Support for 16 languages with flag emojis
+  - Translation cache to reduce API costs
+  - Cultural context cache with 50-entry limit
+  - Exported functions: `translateMessage`, `detectLanguage`, `getCulturalContext`, `getCachedTranslation`, `getCachedCulturalContext`
+- **Updated Database Schema**
+  - Added `detected_language` column to messages table
+  - Migration script for existing databases
+  - Stores ISO 639-1 language codes (en, es, fr, etc.)
+- **Created UI Components**
+  - `LanguageBadge.jsx` - Displays detected language with flag
+  - `TranslationModal.jsx` - Full-featured translation interface
+  - Language picker with target language selection
+  - Loading states, error handling, retry functionality
+  - Original and translated text display
+- **Enhanced Message Flow**
+  - Automatic language detection on message send
+  - Non-blocking detection (defaults to English on failure)
+  - Language badge displayed on all messages
+  - Long-press message → "Translate" option → opens modal
+- **MAJOR ENHANCEMENT - Language Preference System**
+  - Added required language selection during user onboarding
+  - Modal picker with all 16 supported languages
+  - Flag emoji + language name display
+  - Stored in user profile as `preferredLanguage` field
+  - Defaults to English if not set
+- **MAJOR ENHANCEMENT - Profile Language Selector**
+  - View current preferred language with flag in profile
+  - Tap to open language picker modal
+  - Update preferred language anytime
+  - Changes reflected immediately across app
+- **MAJOR ENHANCEMENT - Inline Auto-Translation** ⭐
+  - **Zero delay**: Messages display immediately in original language
+  - **Smart detection**: Compares message language vs. user's preferred language
+  - **Auto-toggle**: Shows "See translation" link only for foreign messages
+  - **Inline display**: Tap to translate message inline (no modal)
+  - **Instant toggle**: "See original" to switch back
+  - **Translation caching**: No redundant API calls on toggle
+  - **Loading states**: "Translating..." with spinner
+  - **Error handling**: "Translation failed. Tap to retry"
+  - **Perfect UX**: No blocking, instant display, on-demand translation
+- **Integration**
+  - Updated `MessageBubble.jsx` with inline translation logic
+  - Updated `useMessages.js` to detect language on send
+  - Modified `firestore.js` to store detected language
+  - Added `onboarding.jsx` language picker (required field)
+  - Added `profile.jsx` language selector (update anytime)
+  - Updated `useAuth.js` to handle `preferredLanguage`
+  - Passed callbacks through `MessageList` component
+  - Wired up in `chat/[id].jsx` screen
+- **Zero linter errors across all files**
+- **All components tested and working perfectly**
+
+### ✅ PR #19: Cultural Context & Idiom Explanations (WITH TRANSLATION!)
+**Completed:** October 23, 2025  
+**Key Achievements:**
+- **Created CulturalContextModal Component** (REFACTORED to Universal Context!)
+  - **Universal cultural context** for ANY message
+  - Single unified explanation from LLM (not just idioms/slang)
+  - Provides cultural context, idiom/slang explanation, or general usage
+  - Works for greetings, casual phrases, formal messages, idioms, slang
+  - Clean modal interface with loading/error states
+  - Retry functionality
+  - Always available in message long-press menu
+- **MAJOR ENHANCEMENT - Inline Translation for Cultural Context** ⭐
+  - Cultural context displayed in English by default
+  - If user's preferred language ≠ English: "See translation" link appears
+  - Tap to translate explanation to user's preferred language
+  - Tap "See original (English)" to switch back
+  - Translation cached in modal state (no repeated API calls)
+  - Loading state with spinner: "Translating..."
+  - Error handling: "Translation failed. Tap to retry"
+  - Seamless toggle between English and user's language
+- **UI Integration**
+  - "Cultural Context" option always available for text messages in long-press menu
+  - Opens dedicated modal with comprehensive explanation
+  - No pre-detection required (on-demand only when modal opens)
+  - Clean, uncluttered UI (removed inline "?" tooltips per user feedback)
+  - Beautiful styling consistent with app theme
+- **Backend Function**: `getCulturalContext`
+  - Single function for universal cultural context (replaces separate detection)
+  - No separate idiom/slang detection needed
+  - LLM provides comprehensive explanation for any text
+  - Explains cultural nuances, idioms, slang, or general usage
+  - Handles all cases intelligently (3-5 sentence explanations)
+  - Deployed to Firebase Cloud Functions
+- **Examples of Universal Context**
+  - "How are you?" → explains greeting cultural context and appropriate responses
+  - "Break the ice" → explains idiom meaning and usage
+  - "What's up?" → explains informal greeting and casual contexts
+  - "Let's break the ice" → detects and explains idiom + cultural nuances
+  - Any message → provides relevant cultural/linguistic context
+- **Complete Translation System** - 3 Layers of Translation
+  1. **Message Translation (Inline)**: "See translation" for foreign messages in chat
+  2. **Message Translation (Modal)**: Long-press → "Translate" → Full modal with language picker
+  3. **Cultural Context Translation**: Explanations translate to user's preferred language
+- **Zero linter errors across all files**
+- **Backend deployed successfully**
+- **All components tested and working perfectly**
+- **Cultural explanations now translatable to any supported language!**
 
 ### ✅ PR #16: Final Polish & Documentation
 **Completed:** October 21, 2025 (Final Night)  
@@ -871,7 +1011,10 @@ Documentation:  ██████████ 90% (Memory Bank fully updated)
 
 **Next Update:** After deploying security rules (PR #15) or final documentation (PR #16)
 
-This progress document reflects the true state of development as of October 23, 2025 (AI Integration - Backend Complete).  
-**🎉 PROJECT STATUS: MVP 100% COMPLETE + AI BACKEND DEPLOYED! 🎉🎉🎉  
-Next: Frontend AI Integration (PR #18-23)**
+This progress document reflects the true state of development as of October 23, 2025 (AI Integration - Frontend Complete).  
+**🎉 PROJECT STATUS: MVP 100% COMPLETE + AI BACKEND DEPLOYED + AI FRONTEND COMPLETE! 🎉🎉🎉  
+✅ PR #17 (AI Backend) - 8 Cloud Functions deployed  
+✅ PR #18 (Translation Enhanced) - Inline translation + language preference  
+✅ PR #19 (Cultural Context + Translation) - Universal context with translation  
+Next: Additional AI Features (PR #20-23)**
 
