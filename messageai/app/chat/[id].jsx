@@ -369,9 +369,7 @@ export default function ChatScreen() {
           {/* Typing Indicator */}
           <TypingIndicator
             typingUserIds={typingUserIds}
-            participants={{
-              [otherParticipant?.id]: otherParticipant,
-            }}
+            participants={conversation?.type === 'group' ? senderProfiles : { [otherParticipant?.id]: otherParticipant }}
           />
         </View>
         

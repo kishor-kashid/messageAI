@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { useImagePicker } from '../../lib/hooks/useImagePicker';
 import { uploadChatImage } from '../../lib/firebase/storage';
+import FormalityAdjuster from './FormalityAdjuster';
 
 /**
  * @param {Object} props
@@ -27,9 +28,10 @@ import { uploadChatImage } from '../../lib/firebase/storage';
  * @param {boolean} [props.disabled=false] - Whether input is disabled
  * @param {string} [props.placeholder='Type a message...'] - Input placeholder
  */
-export function MessageInput({ conversationId, onSend, onTextChange, disabled = false, placeholder = 'Type a message...' }) {
+export function MessageInput({ conversationId, onSend, onTextChange, disabled = false, placeholder = 'Type a message...', detectedLanguage = 'en' }) {
   const [text, setText] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [showFormalityAdjuster, setShowFormalityAdjuster] = useState(false);
   const { pickImage, takePhoto, loading: imagePickerLoading } = useImagePicker();
 
   const handleTextChange = (newText) => {
@@ -128,7 +130,23 @@ export function MessageInput({ conversationId, onSend, onTextChange, disabled = 
     }
   };
 
+  const handleOpenFormalityAdjuster = () => {
+    setShowFormalityAdjuster(true);
+  };
+
+  const handleCloseFormalityAdjuster = () => {
+    setShowFormalityAdjuster(false);
+  };
+
+  const handleApplyAdjustedText = (adjustedText) => {
+    setText(adjustedText);
+    if (onTextChange) {
+      onTextChange(adjustedText);
+    }
+  };
+
   const isLoading = uploadingImage || imagePickerLoading;
+  const showFormalityButton = text.trim().length > 5;
 
   return (
     <View style={styles.container}>
@@ -138,6 +156,16 @@ export function MessageInput({ conversationId, onSend, onTextChange, disabled = 
           <ActivityIndicator size="small" color="#007AFF" />
           <Text style={styles.uploadingText}>Uploading image...</Text>
         </View>
+      )}
+      
+      {/* Formality Adjuster Button */}
+      {showFormalityButton && !isLoading && (
+        <TouchableOpacity 
+          style={styles.formalityButton}
+          onPress={handleOpenFormalityAdjuster}
+        >
+          <Text style={styles.formalityButtonText}>✨ Adjust Tone</Text>
+        </TouchableOpacity>
       )}
       
       <View style={styles.inputContainer}>
@@ -183,6 +211,15 @@ export function MessageInput({ conversationId, onSend, onTextChange, disabled = 
           </Text>
         </TouchableOpacity>
       </View>
+      
+      {/* Formality Adjuster Modal */}
+      <FormalityAdjuster
+        visible={showFormalityAdjuster}
+        onClose={handleCloseFormalityAdjuster}
+        originalText={text}
+        onApply={handleApplyAdjustedText}
+        language={detectedLanguage}
+      />
     </View>
   );
 }
@@ -257,6 +294,22 @@ const styles = StyleSheet.create({
   sendButtonTextDisabled: {
     color: '#FFFFFF',
     opacity: 0.5,
+  },
+  formalityButton: {
+    backgroundColor: '#F0F7FF',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginHorizontal: 8,
+    marginBottom: 8,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: '#007AFF',
+  },
+  formalityButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#007AFF',
   },
 });
 

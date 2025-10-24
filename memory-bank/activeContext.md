@@ -1,23 +1,62 @@
 # Active Context: MessageAI AI Integration
 
-**Last Updated:** October 23, 2025 (AI Integration - PR #19 Complete!)  
-**Current Phase:** AI Features Integration - Cultural Context Complete  
-**Current Branch:** PR19 ✅ Complete  
-**Next Milestone:** Formality Adjustment (PR #20)
+**Last Updated:** October 24, 2025 (AI Integration - PR #22 Complete!)  
+**Current Phase:** AI Features Integration - Pronunciation Guide Complete  
+**Current Branch:** PR22 ✅ Complete  
+**Next Milestone:** Smart Replies (PR #21)
 
 ---
 
 ## Current Status
 
-**Phase:** AI INTEGRATION - CULTURAL CONTEXT COMPLETE  
-**Progress:** MVP Complete (100%) + AI Backend (PR #17 ✅) + Translation (PR #18 ✅) + Cultural Context (PR #19 ✅)  
-**Timeline:** Moving to Formality Adjustment (PR #20)
+**Phase:** AI INTEGRATION - PRONUNCIATION GUIDE COMPLETE  
+**Progress:** MVP Complete (100%) + AI Backend (PR #17 ✅) + Translation (PR #18 ✅) + Cultural Context (PR #19 ✅) + Formality (PR #20 ✅) + TTS (PR #22 ✅)  
+**Timeline:** Moving to Smart Replies (PR #21)
 
 ---
 
 ## What We Just Completed
 
-### Just Completed (October 23, 2025 - AI Cultural Context - PR #19 - UNIVERSAL CONTEXT!)
+### Just Completed (October 24, 2025 - Pronunciation Guide with TTS - PR #22!)
+1. ✅ **PR #22: Pronunciation Guide with Text-to-Speech** - Complete on-device pronunciation
+   - Created TTS utility helper (`lib/utils/tts.js`)
+     - Centralized text-to-speech functions using `expo-speech`
+     - `speak()` function with language support for 16 languages
+     - `stopSpeech()` to prevent overlapping audio
+     - `isSpeaking()` to check playback status
+     - Language code normalization (ISO 639-1 → TTS voice codes)
+     - `getAvailableVoices()` and `isLanguageSupported()` helpers
+     - On-device TTS = Free, offline, fast!
+   - Enhanced MessageBubble component
+     - Added speaker icon (🔉/🔊) next to language badge
+     - **Mode-aware pronunciation:**
+       - Default mode: plays text in original/detected language
+       - Translation mode: plays translated text in user's preferred language
+     - Single speaker icon that adapts automatically
+     - Playing state indicator (🔊 when speaking)
+     - Stop current audio when switching modes
+     - Error handling with user-friendly messages
+   - Enhanced TranslationModal component
+     - Speaker icons for both original and translated text
+     - Independent playback for each section
+     - Stops other audio when one starts playing
+     - Visual playing indicators (🔊 when active)
+     - Clean modal integration with existing UI
+   - User Experience:
+     - **Scenario 1 (Original):** Spanish message → 🔉 → plays in Spanish
+     - **Scenario 2 (Translation):** User taps "See translation" → 🔉 → plays in English
+     - **Scenario 3 (Modal):** Both languages have separate speakers → play independently
+   - Language Support:
+     - English, Spanish, French, German, Italian, Portuguese
+     - Russian, Japanese, Korean, Chinese, Arabic, Hindi
+     - Turkish, Dutch, Polish, Swedish
+     - Graceful fallback for unsupported languages
+   - ✅ Zero linter errors
+   - ✅ expo-speech installed successfully
+   - ✅ All features tested and working
+   - ✅ Beautiful UI consistent with app theme
+
+### Previously Completed (October 23, 2025 - AI Cultural Context - PR #19 - UNIVERSAL CONTEXT!)
 1. ✅ **PR #19: Cultural Context & Idiom Explanations** - Complete universal cultural context
    - Created new backend function: **`getCulturalContext`**
      - Provides cultural context for **ANY message** (not just idioms!)
@@ -72,8 +111,37 @@
    - ✅ All components tested and working
    - ✅ Cultural explanations now translatable!
 
-### Previously Completed (October 23, 2025 - AI Translation Frontend - PR #18 ENHANCED!)
+3. ✅ **PR #20: Formality Adjustment** - Tone adjustment before sending
+   - Created FormalityAdjuster component (`components/chat/FormalityAdjuster.jsx`)
+     - Beautiful modal interface with 4 formality levels
+     - Casual (😊): friendly, contractions, emojis
+     - Neutral (💬): balanced and polite
+     - Formal (🎩): professional, no slang
+     - Professional (💼): business formal
+     - Loading state with spinner during adjustment
+     - Active selection state (blue border + background)
+     - Error handling with retry button
+     - Preview original message
+     - Display adjusted text in highlighted box
+     - "Apply" and "Cancel" buttons
+   - Integrated into MessageInput component
+     - "✨ Adjust Tone" button appears when text length > 5 characters
+     - Button hidden during loading states
+     - Updates text in input when formality adjusted
+     - User can edit rewritten text before sending
+     - Passes detected language for context
+   - Backend function: `adjustFormality` (already deployed in PR #17)
+     - Uses OpenAI GPT-4o-mini to rewrite text
+     - Preserves meaning and important details
+     - Supports multiple languages
+   - ✅ All 4 formality levels working perfectly
+   - ✅ Beautiful UI matching app theme
+   - ✅ Zero linter errors
+
+### Previously Completed (October 23, 2025 - AI Features: Translation, Cultural Context, Formality)
 1. ✅ **PR #18: Language Detection & Real-time Translation** - Complete frontend integration + INLINE AUTO-TRANSLATION!
+2. ✅ **PR #19: Cultural Context & Idiom Explanations** - Universal context + translation!
+3. ✅ **PR #20: Formality Adjustment** - Tone adjustment with 4 levels!
    - Created AI Service client (`lib/api/aiService.js`)
      - Firebase Cloud Functions wrapper for all AI features
      - Automatic error handling and caching
@@ -284,13 +352,15 @@
 
 ## Current Work Focus
 
-**Recently Modified (October 23, 2025 - AI Translation Enhanced + Cultural Context Translation):**
-- **MAJOR ENHANCEMENT**: Inline auto-translation feature added!
+**Recently Modified (October 23, 2025 - AI Features Complete: Translation + Cultural Context + Formality):**
+- **ALL 5 REQUIRED AI FEATURES COMPLETE!** 🎉
+- **NEW**: Created: `messageai/components/chat/FormalityAdjuster.jsx` - **Formality adjustment modal with 4 tone levels**
+- **NEW**: Modified: `messageai/components/chat/MessageInput.jsx` - **Added "✨ Adjust Tone" button and integration**
 - Modified: `messageai/app/(auth)/onboarding.jsx` - Added required language preference picker
 - Modified: `messageai/lib/hooks/useAuth.js` - Store `preferredLanguage` in profile
 - Modified: `messageai/app/(tabs)/profile.jsx` - Added language selector with modal picker
 - Modified: `messageai/components/chat/MessageBubble.jsx` - **Inline translation toggle** (See translation/See original)
-- **NEW**: Modified: `messageai/components/chat/CulturalContextModal.jsx` - **Added inline translation for cultural context!**
+- Modified: `messageai/components/chat/CulturalContextModal.jsx` - **Added inline translation for cultural context!**
 - Modified: `backend/src/culturalContext.js` - **Added `getCulturalContext` function** (universal context for all messages)
 - Modified: `backend/index.js` - **Exported `getCulturalContext`** + updated health check
 - **Deployed**: New `getCulturalContext` function to Firebase (us-central1) ✅

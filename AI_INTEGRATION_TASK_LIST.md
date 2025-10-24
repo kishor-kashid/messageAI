@@ -4,7 +4,7 @@
 **Timeline:** 3-4 days (Wednesday - Saturday)  
 **Early Submission Target:** Friday evening  
 **Final Submission:** Sunday 10:59 PM CT  
-**Current Status:** MVP Complete ✅ → AI Features (3/6 PRs COMPLETE! 🎉)
+**Current Status:** MVP Complete ✅ → AI Features (5/7 PRs COMPLETE! ALL 5 REQUIRED FEATURES + BONUS TTS DONE! 🎉🎉)
 
 ---
 
@@ -26,17 +26,19 @@
 - ✅ **PR #17:** Firebase Cloud Functions Setup (8 functions deployed)
 - ✅ **PR #18:** Language Detection & Real-time Translation + ENHANCED (inline translation + language preference)
 - ✅ **PR #19:** Cultural Context & Idiom Explanations + TRANSLATION (universal context for any message)
+- ✅ **PR #20:** Formality Adjustment (4 tone levels with beautiful UI)
+- ✅ **PR #22:** Pronunciation Guide with TTS (mode-aware pronunciation for original and translated text)
 
 ### 🎯 AI Features IN PROGRESS
-- [ ] **PR #20:** Formality Adjustment
 - [ ] **PR #21:** Smart Replies (Advanced Feature)
-- [ ] **PR #22-23:** Additional features + polish
+- [ ] **PR #23:** AI Feature Polish & Error Handling
 
-### 📊 Progress: 3/6 AI PRs Complete (50%)
+### 📊 Progress: 5/7 AI PRs Complete (71%)
 - Backend Infrastructure: ✅ 100%
 - Translation Features: ✅ 100% (with enhancements)
 - Cultural Context: ✅ 100% (with translation)
-- Formality Adjustment: ⏳ Pending
+- Formality Adjustment: ✅ 100% (COMPLETE!)
+- Pronunciation Guide: ✅ 100% (COMPLETE!)
 - Smart Replies: ⏳ Pending
 - Polish & Demo: ⏳ Pending
 
@@ -48,8 +50,8 @@
 1. ✅ **Real-time Translation** - Translate messages to any language (COMPLETE + INLINE!)
 2. ✅ **Language Detection** - Auto-detect message language (COMPLETE + PREFERENCE!)
 3. ✅ **Cultural Context Hints** - Explain cultural references (COMPLETE + UNIVERSAL!)
-4. ⏳ **Formality Adjustment** - Rewrite messages in different tones (TODO)
-5. ⏳ **Slang/Idiom Explanations** - Explain unclear phrases (MERGED with Cultural Context!)
+4. ✅ **Formality Adjustment** - Rewrite messages in different tones (COMPLETE + 4 LEVELS!)
+5. ✅ **Slang/Idiom Explanations** - Explain unclear phrases (MERGED with Cultural Context!)
 
 ### Advanced Feature (Choose 1)
 **Selected:** ⏳ Context-Aware Smart Replies - Generate quick replies in detected language matching user's style (TODO)
@@ -459,61 +461,122 @@
 
 ---
 
-## PR #20: Formality Adjustment 👔
+## PR #20: Formality Adjustment 👔 ✅ COMPLETE
 
-**Estimated Time:** 2 hours  
+**Actual Time:** ~1.5 hours  
 **Priority:** 🔥🔥 HIGH  
 **Branch:** `feature/formality-adjustment`  
-**Depends on:** PR #18
+**Depends on:** PR #18  
+**Status:** ✅ COMPLETE (October 23, 2025)
 
-### Objectives
-- Rewrite messages in different formality levels
-- Add UI in message composer to adjust tone
-- Support casual, neutral, formal, and professional tones
+### Objectives ✅
+- ✅ Rewrite messages in different formality levels
+- ✅ Add UI in message composer to adjust tone
+- ✅ Support casual, neutral, formal, and professional tones
 
-### Tasks
+### Completed Tasks
 
-#### 1. Formality Adjustment Cloud Function (45 min)
-- Create `functions/src/formality.js`
-- Implement `adjustFormality` HTTPS callable function
-- Define formality levels:
-  - Casual: friendly, contractions, emojis
-  - Neutral: balanced and polite
-  - Formal: professional, no slang
-  - Professional: business formal
-- Use OpenAI to rewrite text
-- Preserve meaning and important details
-- Log usage for cost tracking
+#### 1. Formality Adjustment Cloud Function ✅
+- ✅ Created `backend/src/formality.js` (deployed in PR #17)
+- ✅ Implemented `adjustFormality` HTTPS callable function
+- ✅ Defined formality levels:
+  - Casual (😊): friendly, contractions, emojis
+  - Neutral (💬): balanced and polite
+  - Formal (🎩): professional, no slang
+  - Professional (💼): business formal
+- ✅ Uses OpenAI GPT-4o-mini to rewrite text
+- ✅ Preserves meaning and important details
+- ✅ Usage logging via middleware
 
-#### 2. Frontend: Formality Adjuster UI (75 min)
-- Create `components/chat/FormalityAdjuster.jsx`
-- Show "✨ Adjust Tone" button
-- Display 4 formality level options with emojis
-- Show level descriptions
-- Display loading state during adjustment
-- Show active selection state
-- Handle errors with user-friendly messages
+#### 2. Frontend: Formality Adjuster UI ✅
+- ✅ Created `messageai/components/chat/FormalityAdjuster.jsx`
+- ✅ Beautiful modal interface with "✨ Adjust Tone" header
+- ✅ Display 4 formality level options with emojis
+- ✅ Each level shows:
+  - Emoji icon (😊💬🎩💼)
+  - Level name (Casual/Neutral/Formal/Professional)
+  - Brief description
+  - Color-coded design
+- ✅ Loading state during adjustment with spinner
+- ✅ Active selection state (blue border + background)
+- ✅ Error handling with retry button
+- ✅ Preview original message
+- ✅ Display adjusted text in highlighted box
+- ✅ "Apply" and "Cancel" buttons
 
-#### 3. Integrate into MessageInput (30 min)
-- Add FormalityAdjuster to MessageInput component
-- Only show when text length > 5 characters
-- Update text in input when formality adjusted
-- Allow user to edit rewritten text before sending
-- Pass detected language for context
+#### 3. Integrate into MessageInput ✅
+- ✅ Added FormalityAdjuster import and state to MessageInput
+- ✅ "✨ Adjust Tone" button appears when text length > 5 characters
+- ✅ Button hidden during loading states
+- ✅ Updates text in input when formality adjusted
+- ✅ User can edit rewritten text before sending
+- ✅ Passes detected language for context
+- ✅ Beautiful styling consistent with app theme
+- ✅ Button styled with blue border and light blue background
 
-### Testing Checklist
-- [ ] Casual tone converts formal to casual correctly
-- [ ] Professional tone converts casual to formal
-- [ ] Neutral balances between extremes
-- [ ] Preserves meaning across rewrites
-- [ ] Works with different languages
-- [ ] UI is intuitive and fast
+#### 4. AI Service Integration ✅
+- ✅ `adjustFormality` function already in `messageai/lib/api/aiService.js`
+- ✅ Validates formality level parameter
+- ✅ Supports optional language parameter
+- ✅ Proper error handling
 
-### Files to Create/Modify
-- `functions/src/formality.js` - NEW
-- `messageai/components/chat/FormalityAdjuster.jsx` - NEW
-- `messageai/components/chat/MessageInput.jsx` - MODIFY
-- `messageai/lib/api/ai.js` - MODIFY
+### Testing Checklist ✅
+- ✅ Casual tone converts formal to casual correctly
+- ✅ Professional tone converts casual to formal
+- ✅ Neutral balances between extremes
+- ✅ Formal provides professional tone
+- ✅ Preserves meaning across rewrites
+- ✅ Works with different languages (via language parameter)
+- ✅ UI is intuitive and fast
+- ✅ Button only shows when text > 5 characters
+- ✅ User can edit adjusted text before sending
+- ✅ Zero linter errors
+
+### Files Created/Modified
+- ✅ `backend/src/formality.js` - Created in PR #17 (already deployed)
+- ✅ `messageai/components/chat/FormalityAdjuster.jsx` - NEW
+  - Modal interface with 4 formality levels
+  - Loading, error, and success states
+  - Beautiful UI matching app theme
+- ✅ `messageai/components/chat/MessageInput.jsx` - MODIFIED
+  - Added FormalityAdjuster integration
+  - "✨ Adjust Tone" button (shows when text > 5 chars)
+  - State management for modal
+  - Handlers for applying adjusted text
+- ✅ `messageai/lib/api/aiService.js` - Already has `adjustFormality` function
+
+### Formality Levels Explained
+1. **Casual (😊)**: Friendly and relaxed
+   - Uses contractions, casual language
+   - May include emojis
+   - Example: "Hey! Can't wait to chat! 😊"
+
+2. **Neutral (💬)**: Balanced and polite
+   - Balanced tone, neither too casual nor too formal
+   - Polite and clear
+   - Example: "Hello, looking forward to our conversation."
+
+3. **Formal (🎩)**: Professional tone
+   - No slang or casual language
+   - Professional and respectful
+   - Example: "Good morning, I am eager to discuss this matter."
+
+4. **Professional (💼)**: Business formal
+   - Highest formality level
+   - Business-appropriate language
+   - Example: "Dear colleague, I would appreciate the opportunity to engage in discourse regarding this subject."
+
+### User Experience Flow
+1. User types a message (e.g., "hey can u help me with this?")
+2. When text length > 5 characters, "✨ Adjust Tone" button appears
+3. User taps the button → FormalityAdjuster modal opens
+4. Modal shows original message preview
+5. User sees 4 formality level options with emojis
+6. User taps a formality level (e.g., "Professional")
+7. Loading indicator appears: "Adjusting tone..."
+8. Adjusted text appears: "Good morning, could you please assist me with this matter?"
+9. User taps "Apply" → Text updates in input field
+10. User can edit further or send message
 
 ---
 
@@ -596,7 +659,124 @@
 
 ---
 
-## PR #22: AI Feature Polish & Error Handling 🎨
+## PR #22: Pronunciation Guide with Text-to-Speech 🔊 ✅ COMPLETE
+
+**Estimated Time:** 1-2 hours  
+**Actual Time:** 1.5 hours  
+**Priority:** 🔥🔥 HIGH  
+**Branch:** `feature/pronunciation-guide`  
+**Depends on:** PR #18, PR #19  
+**Status:** ✅ **COMPLETED** (October 24, 2025)
+
+### Objectives
+- Add text-to-speech pronunciation for messages
+- Support both original and translated language pronunciation
+- Single speaker icon that adapts based on view mode
+- Use device TTS (expo-speech) for offline capability
+
+### Tasks
+
+#### 1. Add Speaker Icon to MessageBubble (30 min)
+- Add speaker icon (🔊) next to language badge in MessageBubble
+- Only show for text messages with detected language
+- Position next to country flag emoji
+- Small, unobtrusive design
+- Tap to play pronunciation
+
+#### 2. Implement TTS Logic (45 min)
+- Use `expo-speech` for on-device text-to-speech
+- **Default mode (original text):**
+  - Speaker plays text in original/detected language
+  - Example: Spanish message → plays in Spanish
+- **Translation view mode:**
+  - When user taps "See translation", speaker icon updates
+  - Speaker plays translated text in user's preferred language
+  - Example: Spanish → English translation → plays in English
+- Stop any playing audio when switching modes
+- Handle language code mapping (ISO 639-1)
+
+#### 3. Add Speaker Icon to TranslationModal (30 min)
+- Add speaker icons in translation modal
+- One icon for original text (top section)
+- One icon for translated text (bottom section)
+- Both independently playable
+- Show playing state (animated speaker icon)
+
+#### 4. Playback Controls & States (15 min)
+- Show playing indicator (animated speaker icon or text)
+- Stop button when audio is playing
+- Handle errors gracefully (language not supported)
+- Add haptic feedback on tap (iOS/Android)
+- Prevent multiple simultaneous playbacks
+
+
+**State Management:**
+- Track which message is currently playing
+- Track view mode (original vs translation)
+- Update speaker icon behavior based on mode
+
+### User Experience Flow
+
+**Scenario 1: Original Message**
+```
+1. User receives Spanish message: "Hola, ¿cómo estás?"
+2. Message shows: "Hola, ¿cómo estás?" 🇪🇸 🔊
+3. User taps 🔊 → Plays in Spanish
+```
+
+**Scenario 2: Translated View**
+```
+1. User sees Spanish message: "Hola, ¿cómo estás?" 🇪🇸 🔊
+2. User taps "See translation"
+3. Message shows: "Hello, how are you?" 🇺🇸 🔊
+4. User taps 🔊 → Plays in English
+```
+
+**Scenario 3: Translation Modal**
+```
+1. User opens translation modal
+2. Top section: "Hola, ¿cómo estás?" 🇪🇸 🔊
+3. Bottom section: "Hello, how are you?" 🇺🇸 🔊
+4. User can play either independently
+```
+
+### Testing Checklist
+- [x] Speaker icon appears next to language badge
+- [x] Default mode plays original language
+- [x] Translation mode plays translated language
+- [x] Only one audio plays at a time
+- [x] Playing state shows visual feedback
+- [x] Works for 16 supported languages
+- [x] Graceful fallback for unsupported languages
+- [x] No crashes on rapid tapping
+- [x] Audio stops when switching views
+- [x] Translation modal has both speakers
+
+### Files to Create/Modify
+- `messageai/components/chat/MessageBubble.jsx` - MODIFY
+  - Add speaker icon next to language badge
+  - Implement TTS logic with mode awareness
+  - Handle play/stop states
+- `messageai/components/chat/TranslationModal.jsx` - MODIFY
+  - Add speaker icons for both languages
+  - Implement independent playback
+- `messageai/lib/utils/tts.js` - NEW
+  - Helper functions for TTS
+  - Language code validation
+  - Error handling
+
+### Language Support
+Uses device's installed TTS voices for:
+- English (en), Spanish (es), French (fr), German (de)
+- Italian (it), Portuguese (pt), Russian (ru), Japanese (ja)
+- Korean (ko), Chinese (zh), Arabic (ar), Hindi (hi)
+- Turkish (tr), Dutch (nl), Polish (pl), Swedish (sv)
+
+Fallback: If language not available, show toast message
+
+---
+
+## PR #23: AI Feature Polish & Error Handling 🎨
 
 **Estimated Time:** 3-4 hours  
 **Priority:** 🔥 MEDIUM  
@@ -608,7 +788,6 @@
 - Implement error handling and retries
 - Add rate limiting to prevent abuse
 - Optimize caching to reduce costs
-- Add user preferences for AI features
 
 ### Tasks
 
@@ -632,37 +811,12 @@
 - Add rate limit check to all cloud functions
 - Display rate limit info to user
 
-#### 3. AI Preferences Screen (90 min)
-- Create `app/(tabs)/ai-settings.jsx`
-- Add settings for:
-  - Auto-detect language (toggle)
-  - Show cultural hints (toggle)
-  - Enable smart replies (toggle)
-  - Preferred translation language (picker)
-  - Default formality level (picker)
-- Display usage statistics:
-  - Translations this month
-  - Smart replies used
-  - Cultural hints viewed
-- Save preferences to Firestore
-- Apply preferences throughout app
-
-#### 4. Cost Tracking Dashboard (60 min)
-- Create `functions/src/utils/costTracking.js`
-- Implement token estimation
-- Calculate costs per model (GPT-4o-mini)
-- Log all AI usage with cost estimates
-- Create monthly usage summary function
-- Display cost breakdown by feature
-- Show total estimated monthly cost
 
 ### Testing Checklist
 - [ ] Loading states appear for all AI features
 - [ ] Error messages are user-friendly
 - [ ] Retry buttons work correctly
 - [ ] Rate limiting prevents abuse (test with 100+ calls)
-- [ ] User preferences save and apply
-- [ ] Cost tracking accurately estimates usage
 - [ ] Cache reduces duplicate AI calls
 
 ### Files to Create/Modify
@@ -670,230 +824,6 @@
 - `messageai/components/ai/AIErrorState.jsx` - NEW
 - `messageai/app/(tabs)/ai-settings.jsx` - NEW
 - `functions/src/utils/rateLimit.js` - NEW
-- `functions/src/utils/costTracking.js` - NEW
 - All cloud functions - MODIFY (add rate limiting)
 
 ---
-
-## PR #23: Demo Preparation & Documentation 📹
-
-**Estimated Time:** 4-6 hours  
-**Priority:** 🔥🔥 CRITICAL  
-**Branch:** `feature/demo-docs`  
-**Depends on:** All previous PRs
-
-### Objectives
-- Create comprehensive demo video (5-7 minutes)
-- Write persona brainlift document
-- Update README with AI features
-- Prepare test scenarios
-- Polish UI for recording
-
-### Tasks
-
-#### 1. Demo Script & Test Scenarios (90 min)
-- Write detailed demo script (7 minutes)
-- Part 1: Real-Time Messaging Infrastructure (2 min)
-  - Show login, real-time delivery
-  - Demonstrate offline sync
-  - Show group chat
-  - Demonstrate read receipts and typing
-- Part 2: Language Detection & Translation (2 min)
-  - Show auto-detection with language badge
-  - Demonstrate translation to multiple languages
-  - Show translation caching
-- Part 3: Cultural Context & Idiom Explanations (1.5 min)
-  - Show idiom detection with ? icon
-  - Demonstrate explanation modal
-  - Test with multiple idioms
-- Part 4: Formality Adjustment (1.5 min)
-  - Show tone adjustment UI
-  - Demonstrate 4 formality levels
-  - Show meaning preservation
-- Part 5: Smart Replies (1 min)
-  - Show contextual reply generation
-  - Demonstrate 3 reply options
-  - Show one-tap send
-- Prepare backup scenarios
-- Create shot list for recording
-
-#### 2. Record Demo Video (2-3 hours)
-- Set up two devices (or simulator + physical)
-- Use screen recording software (OBS/QuickTime)
-- Record in 1080p or higher
-- Add voiceover explaining features
-- Record multiple takes if needed
-- Edit for smooth flow and timing
-- Add intro/outro slides with project info
-- Add subtitles/captions for accessibility
-- Export in high quality
-- Upload to YouTube/Vimeo
-
-#### 3. Persona Brainlift Document (60 min)
-- Create `PERSONA_BRAINLIFT.md`
-- Section: Who They Are
-  - Define International Communicator persona
-  - List demographics and use cases
-- Section: Their Pain Points
-  - Language barriers
-  - Translation friction
-  - Cultural misunderstandings
-  - Formality confusion
-  - Response time slowness
-- Section: How Each Feature Solves Real Problems
-  - Map each of 5 features to specific pain points
-  - Explain impact and value
-- Section: Key Technical Decisions
-  - Why OpenAI GPT-4o-mini
-  - Why RAG for smart replies
-  - Why translation caching
-  - Why rate limiting
-- Section: Success Metrics
-  - Define measurable outcomes
-  - Set targets for adoption
-- Section: What Makes This Unique
-  - Compare to alternatives
-  - Highlight differentiators
-- Section: Future Enhancements
-  - List post-MVP features
-
-#### 4. Update README (90 min)
-- Update project overview with AI features
-- Add comprehensive feature list
-- Document all 5 AI features with descriptions
-- Add technical architecture section
-- Update setup instructions for Cloud Functions
-- Document OpenAI API key configuration
-- Add cost analysis section
-- Include persona description
-- Add link to demo video
-- Update testing section
-- Add deployment instructions
-- Include screenshots/GIFs
-
-#### 5. Create Social Post (15 min)
-- Write 2-3 sentence description
-- Highlight key features and persona
-- Include demo video link or screenshots
-- Tag @GauntletAI
-- Post to X/Twitter or LinkedIn
-
-### Testing Checklist
-- [ ] Demo video recorded and edited
-- [ ] All 5 AI features demonstrated clearly
-- [ ] Video is 5-7 minutes long
-- [ ] Persona brainlift document complete
-- [ ] README updated with AI features
-- [ ] GitHub repository cleaned up
-- [ ] All files committed and pushed
-- [ ] Social post published
-
-### Files to Create/Modify
-- `README.md` - MAJOR UPDATE
-- `PERSONA_BRAINLIFT.md` - NEW
-- `DEMO_SCRIPT.md` - NEW
-- Demo video file - NEW
-- Screenshots for README - NEW
-
----
-
-## Timeline & Dependencies
-
-### Day 1 (Wednesday) - Foundation
-- **Morning:** PR #17 (Cloud Functions Setup) - 2-3 hours
-- **Afternoon:** PR #18 (Translation & Detection) - 3-4 hours
-- **Evening:** PR #19 (Cultural Context) - 2-3 hours
-- **Total:** 7-10 hours
-
-### Day 2 (Thursday) - Core AI Features
-- **Morning:** PR #20 (Formality Adjustment) - 2 hours
-- **Afternoon/Evening:** PR #21 (Smart Replies) - 4-6 hours
-- **Total:** 6-8 hours
-
-### Day 3 (Friday) - Polish & Early Submission
-- **Morning:** PR #22 (Polish & Error Handling) - 3-4 hours
-- **Afternoon:** PR #23 Start (Demo prep) - 2 hours
-- **Evening:** Record demo video - 2-3 hours
-- **Submit early version Friday evening** ✅
-- **Total:** 7-9 hours
-
-### Day 4 (Saturday) - Optional Polish
-- Final bug fixes
-- Improve demo video
-- Add any nice-to-have features
-
-### Day 5 (Sunday) - Final Submission
-- Final testing
-- Complete all documentation
-- **Submit by 10:59 PM CT** ✅
-
----
-
-## Success Criteria
-
-### MVP (Already Complete ✅)
-- [x] Real-time messaging
-- [x] Offline sync
-- [x] Group chat
-- [x] Read receipts
-- [x] Push notifications
-
-### AI Features (To Complete)
-- [ ] All 5 required features working
-- [ ] 1 advanced feature (Smart Replies) working
-- [ ] Demo video (5-7 minutes)
-- [ ] Persona brainlift document
-- [ ] Updated README
-- [ ] Deployed and testable
-
----
-
-## Risk Mitigation
-
-| Risk | Mitigation |
-|------|------------|
-| OpenAI API costs too high | Use GPT-4o-mini, implement aggressive caching, rate limiting |
-| Translation quality poor | Add user feedback, cache good translations, iterate prompts |
-| Smart replies sound robotic | Use RAG to learn user style, provide 3 options to choose from |
-| Demo recording fails | Practice script multiple times, have backup scenarios |
-| Time runs out | Focus on PRs #17-21 first (core features), skip PR #22 if needed |
-
----
-
-## Estimated Total Time
-
-| Phase | Hours |
-|-------|-------|
-| PR #17: Cloud Functions | 2-3 |
-| PR #18: Translation | 3-4 |
-| PR #19: Cultural Context | 2-3 |
-| PR #20: Formality | 2 |
-| PR #21: Smart Replies | 4-6 |
-| PR #22: Polish | 3-4 |
-| PR #23: Demo & Docs | 4-6 |
-| **Total** | **20-28 hours** |
-
-**Timeline:** 3-4 days (Wednesday → Saturday/Sunday)
-
----
-
-## Quick Reference
-
-### All PRs at a Glance
-1. **PR #17** - Cloud Functions Setup (2-3h) - FOUNDATION
-2. **PR #18** - Translation & Language Detection (3-4h) - CORE
-3. **PR #19** - Cultural Context & Idioms (2-3h) - CORE
-4. **PR #20** - Formality Adjustment (2h) - CORE
-5. **PR #21** - Smart Replies (4-6h) - ADVANCED FEATURE
-6. **PR #22** - Polish & Error Handling (3-4h) - POLISH
-7. **PR #23** - Demo & Documentation (4-6h) - DELIVERY
-
-### Priority Order
-1. PR #17 (Must do first - foundation)
-2. PR #18 (Core feature #1 & #2)
-3. PR #19 (Core feature #3 & #5)
-4. PR #20 (Core feature #4)
-5. PR #21 (Advanced feature)
-6. PR #23 (Demo - critical for submission)
-7. PR #22 (Nice to have - can skip if time-constrained)
-
