@@ -183,18 +183,22 @@ export const adjustFormality = async (text, targetFormality, language = null) =>
 };
 
 /**
- * Generate smart reply suggestions
+ * Generate smart reply suggestions with conversation context
  * @param {string} lastMessage - Last received message
+ * @param {string} conversationId - Optional conversation ID for context (RAG)
  * @param {string} targetLanguage - Optional target language
  * @param {string} replyStyle - Optional reply style preference
- * @returns {Promise<{replies: Array<string>}>}
+ * @returns {Promise<{replies: Array<string>, context: Object}>}
  */
-export const generateSmartReplies = async (lastMessage, targetLanguage = null, replyStyle = null) => {
+export const generateSmartReplies = async (lastMessage, conversationId = null, targetLanguage = null, replyStyle = null) => {
   if (!lastMessage || lastMessage.trim().length === 0) {
     throw new Error('Last message is required.');
   }
   
   const data = { lastMessage };
+  if (conversationId) {
+    data.conversationId = conversationId;
+  }
   if (targetLanguage) {
     data.targetLanguage = targetLanguage;
   }
