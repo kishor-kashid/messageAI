@@ -10,6 +10,7 @@ import { View, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator, Act
 import LanguageBadge from './LanguageBadge';
 import { translateMessage } from '../../lib/api/aiService';
 import { useAuth } from '../../lib/hooks/useAuth';
+import { speak, stopSpeech } from '../../lib/utils/tts';
 
 /**
  * Format timestamp to time string
@@ -158,6 +159,9 @@ export function MessageBubble({
   const [isTranslating, setIsTranslating] = useState(false);
   const [translationError, setTranslationError] = useState(false);
   
+  // TTS state
+  const [isPlaying, setIsPlaying] = useState(false);
+  
   const hasImage = !!imageUrl;
   const hasText = !!content;
   
@@ -193,6 +197,41 @@ export function MessageBubble({
       setTranslationError(true);
     } finally {
       setIsTranslating(false);
+    }
+  };
+
+  // Handle pronunciation (TTS)
+  const handlePronunciation = async () => {
+    try {
+      if (isPlaying) {
+        // Stop if already playing
+        await stopSpeech();
+        setIsPlaying(false);
+        return;
+      }
+
+      // Determine which text and language to speak based on view mode
+      const textToSpeak = showTranslated ? translatedText : content;
+      const languageToUse = showTranslated ? userLang : messageLang;
+
+      if (!textToSpeak) {
+        Alert.alert('Error', 'No text to pronounce');
+        return;
+      }
+
+      // Start speaking
+      await speak(textToSpeak, languageToUse, {
+        onStart: () => setIsPlaying(true),
+        onDone: () => setIsPlaying(false),
+        onError: (error) => {
+          setIsPlaying(false);
+          Alert.alert('Pronunciation Error', 'Unable to pronounce this message. The language may not be supported by your device.');
+        },
+      });
+    } catch (error) {
+      console.error('TTS error:', error);
+      setIsPlaying(false);
+      Alert.alert('Error', 'Failed to play pronunciation');
     }
   };
 
@@ -358,12 +397,23 @@ export function MessageBubble({
                 {showTranslated ? translatedText : content}
               </Text>
               
-              {/* Language Badge */}
-              {detected_language && (
-                <LanguageBadge 
-                  languageCode={detected_language} 
-                  isOwnMessage={isOwnMessage}
-                />
+              {/* Language Badge and Speaker Icon - Only for received messages */}
+              {detected_language && !isOwnMessage && (
+                <View style={styles.languageRow}>
+                  <LanguageBadge 
+                    languageCode={detected_language} 
+                    isOwnMessage={isOwnMessage}
+                  />
+                  <TouchableOpacity 
+                    onPress={handlePronunciation}
+                    style={styles.speakerButton}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Text style={styles.speakerIcon}>
+                      {isPlaying ? '🔊' : '🔉'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               )}
 
               {/* Inline Translation Toggle */}
@@ -526,6 +576,18 @@ const styles = StyleSheet.create({
   },
   translationErrorText: {
     color: '#FF3B30',
+  },
+  languageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 6,
+  },
+  speakerButton: {
+    padding: 2,
+  },
+  speakerIcon: {
+    fontSize: 16,
   },
   footer: {
     flexDirection: 'row',

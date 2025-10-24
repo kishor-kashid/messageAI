@@ -1,8 +1,8 @@
 # Progress: MessageAI
 
-**Last Updated:** October 23, 2025 (AI Integration - ALL 5 REQUIRED FEATURES COMPLETE!)  
-**Current Phase:** AI Features Integration - 4/6 PRs Complete (All Required Features Done!)  
-**Overall Progress:** MVP 100% + PR #17 (Backend) + PR #18 (Translation) + PR #19 (Cultural Context) + PR #20 (Formality) Complete ✅
+**Last Updated:** October 24, 2025 (AI Integration - ALL 5 REQUIRED FEATURES + BONUS TTS!)  
+**Current Phase:** AI Features Integration - 5/7 PRs Complete (All Required + Pronunciation Guide!)  
+**Overall Progress:** MVP 100% + PR #17 (Backend) + PR #18 (Translation) + PR #19 (Cultural Context) + PR #20 (Formality) + PR #22 (TTS) Complete ✅
 
 ---
 
@@ -74,6 +74,26 @@ Documentation:  ██████████ 90% (Memory Bank fully updated)
   - Examples:
     - "hey can u help" → (Professional) → "Good morning, could you please assist me with this matter?"
     - "I request your assistance" → (Casual) → "Hey! Can you help me out? 😊"
+- ✅ **Pronunciation Guide with TTS (PR #22 - ON-DEVICE SPEECH!)**
+  - Text-to-speech for all messages using expo-speech
+  - Speaker icon (🔉/🔊) next to language badge
+  - **Mode-aware pronunciation**:
+    - Default mode: Plays original message in detected language
+    - Translation mode: Plays translated text in user's preferred language
+  - Single speaker icon that adapts automatically to view mode
+  - Playing state indicator (🔊 when speaking)
+  - TranslationModal has independent speakers for both languages
+  - On-device TTS (free, offline, fast!)
+  - Supports 16 languages:
+    - English, Spanish, French, German, Italian, Portuguese
+    - Russian, Japanese, Korean, Chinese, Arabic, Hindi
+    - Turkish, Dutch, Polish, Swedish
+  - Error handling with user-friendly messages
+  - Prevents overlapping audio (stops previous when new starts)
+  - Examples:
+    - Spanish message → tap 🔉 → plays "Hola, ¿cómo estás?" in Spanish
+    - User taps "See translation" → English appears → tap 🔉 → plays "Hello, how are you?" in English
+    - Translation modal → both texts have speakers → play independently
 
 ### Advanced Features (October 22, 2025 - Post-MVP)
 - ✅ WhatsApp-style read receipts for group chats
@@ -749,6 +769,54 @@ Documentation:  ██████████ 90% (Memory Bank fully updated)
 - **Beautiful UI matching app theme perfectly**
 - **ALL 5 REQUIRED AI FEATURES NOW COMPLETE!** 🎉
 
+### ✅ PR #22: Pronunciation Guide with Text-to-Speech
+**Completed:** October 24, 2025  
+**Key Achievements:**
+- **Created TTS Utility Helper** (`lib/utils/tts.js`)
+  - Centralized text-to-speech functions using `expo-speech`
+  - `speak()` function with language support for 16 languages
+  - `stopSpeech()` to prevent overlapping audio playback
+  - `isSpeaking()` to check current playback status
+  - Language code normalization (ISO 639-1 → TTS voice codes)
+  - `getAvailableVoices()` and `isLanguageSupported()` helpers
+  - Error handling with user-friendly error messages
+  - On-device TTS = Free, offline, and fast!
+- **Enhanced MessageBubble Component** (`components/chat/MessageBubble.jsx`)
+  - Added speaker icon (🔉/🔊) next to language badge
+  - **Mode-aware pronunciation**:
+    - Default mode: Plays text in original/detected language
+    - Translation mode: Plays translated text in user's preferred language
+  - Single speaker icon that adapts automatically based on view mode
+  - Playing state indicator changes to 🔊 when speaking
+  - Stops current audio when switching between original/translation modes
+  - Tap speaker to play, tap again to stop
+  - Error alerts for unsupported languages
+- **Enhanced TranslationModal Component** (`components/chat/TranslationModal.jsx`)
+  - Speaker icons for both original and translated text sections
+  - Independent playback for each language
+  - Stops other audio when one starts playing (no overlaps)
+  - Visual playing indicators (🔊 when active, 🔉 when idle)
+  - Clean integration with existing modal UI
+  - Stops audio automatically when modal closes
+- **Language Support**: 16 languages with device TTS
+  - English, Spanish, French, German, Italian, Portuguese
+  - Russian, Japanese, Korean, Chinese, Arabic, Hindi
+  - Turkish, Dutch, Polish, Swedish
+  - Graceful fallback with alert for unsupported languages
+- **User Experience Examples**:
+  - Scenario 1: Spanish message "Hola" → tap 🔉 → plays in Spanish
+  - Scenario 2: User taps "See translation" → English "Hello" → tap 🔉 → plays in English
+  - Scenario 3: TranslationModal → both languages playable independently
+- **Technical Implementation**:
+  - expo-speech package installed (v12.1.2)
+  - On-device TTS (no API calls, no costs, works offline)
+  - Proper cleanup on unmount and mode switches
+  - HitSlop for better touch targets on speaker icons
+- **Zero linter errors across all files**
+- **All pronunciation features tested and working**
+- **Beautiful UI consistent with app theme**
+- **Bonus feature beyond the 5 required!** 🎤
+
 ### ✅ PR #16: Final Polish & Documentation
 **Completed:** October 21, 2025 (Final Night)  
 **Key Achievements:**
@@ -1087,5 +1155,6 @@ This progress document reflects the true state of development as of October 23, 
 ✅ PR #18 (Translation Enhanced) - Inline translation + language preference  
 ✅ PR #19 (Cultural Context + Translation) - Universal context with translation  
 ✅ PR #20 (Formality Adjustment) - 4 tone levels with beautiful UI  
-Next: PR #21 (Smart Replies - Advanced Feature) + Polish & Demo**
+✅ PR #22 (Pronunciation Guide) - Mode-aware TTS with expo-speech  
+Next: PR #21 (Smart Replies - Advanced Feature) + PR #23 (Polish & Demo)**
 

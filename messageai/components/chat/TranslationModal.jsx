@@ -17,6 +17,7 @@ import {
   Alert,
 } from 'react-native';
 import { getCachedTranslation, SUPPORTED_LANGUAGES } from '../../lib/api/aiService';
+import { speak, stopSpeech } from '../../lib/utils/tts';
 
 /**
  * TranslationModal Component
@@ -31,6 +32,10 @@ const TranslationModal = ({ visible, onClose, originalText, sourceLanguage }) =>
   const [translatedText, setTranslatedText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  
+  // TTS state
+  const [playingOriginal, setPlayingOriginal] = useState(false);
+  const [playingTranslation, setPlayingTranslation] = useState(false);
 
   // Auto-translate when language selected
   useEffect(() => {
@@ -61,10 +66,82 @@ const TranslationModal = ({ visible, onClose, originalText, sourceLanguage }) =>
     }
   };
 
-  const handleClose = () => {
+  const handleClose = async () => {
+    // Stop any playing audio
+    await stopSpeech();
+    setPlayingOriginal(false);
+    setPlayingTranslation(false);
     setTranslatedText('');
     setError(null);
     onClose();
+  };
+
+  // Handle pronunciation for original text
+  const handlePronounceOriginal = async () => {
+    try {
+      if (playingOriginal) {
+        await stopSpeech();
+        setPlayingOriginal(false);
+        return;
+      }
+
+      if (!originalText) {
+        Alert.alert('Error', 'No text to pronounce');
+        return;
+      }
+
+      // Stop translation if playing
+      if (playingTranslation) {
+        await stopSpeech();
+        setPlayingTranslation(false);
+      }
+
+      await speak(originalText, sourceLanguage || 'en', {
+        onStart: () => setPlayingOriginal(true),
+        onDone: () => setPlayingOriginal(false),
+        onError: (error) => {
+          setPlayingOriginal(false);
+          Alert.alert('Pronunciation Error', 'Unable to pronounce in this language.');
+        },
+      });
+    } catch (error) {
+      console.error('TTS error:', error);
+      setPlayingOriginal(false);
+    }
+  };
+
+  // Handle pronunciation for translated text
+  const handlePronounceTranslation = async () => {
+    try {
+      if (playingTranslation) {
+        await stopSpeech();
+        setPlayingTranslation(false);
+        return;
+      }
+
+      if (!translatedText) {
+        Alert.alert('Error', 'Please translate first');
+        return;
+      }
+
+      // Stop original if playing
+      if (playingOriginal) {
+        await stopSpeech();
+        setPlayingOriginal(false);
+      }
+
+      await speak(translatedText, selectedLanguage, {
+        onStart: () => setPlayingTranslation(true),
+        onDone: () => setPlayingTranslation(false),
+        onError: (error) => {
+          setPlayingTranslation(false);
+          Alert.alert('Pronunciation Error', 'Unable to pronounce in this language.');
+        },
+      });
+    } catch (error) {
+      console.error('TTS error:', error);
+      setPlayingTranslation(false);
+    }
   };
 
   if (!visible) return null;
@@ -88,7 +165,18 @@ const TranslationModal = ({ visible, onClose, originalText, sourceLanguage }) =>
 
           {/* Original Text */}
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Original</Text>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionLabel}>Original</Text>
+              <TouchableOpacity 
+                onPress={handlePronounceOriginal}
+                style={styles.speakerButton}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Text style={styles.speakerIcon}>
+                  {playingOriginal ? '🔊' : '🔉'}
+                </Text>
+              </TouchableOpacity>
+            </View>
             <View style={styles.textContainer}>
               <Text style={styles.text}>{originalText}</Text>
             </View>
@@ -127,7 +215,20 @@ const TranslationModal = ({ visible, onClose, originalText, sourceLanguage }) =>
 
           {/* Translated Text */}
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Translation</Text>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionLabel}>Translation</Text>
+              {translatedText && (
+                <TouchableOpacity 
+                  onPress={handlePronounceTranslation}
+                  style={styles.speakerButton}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Text style={styles.speakerIcon}>
+                    {playingTranslation ? '🔊' : '🔉'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
             <View style={styles.textContainer}>
               {loading ? (
                 <View style={styles.loadingContainer}>
@@ -212,6 +313,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#666',
     marginBottom: 8,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  speakerButton: {
+    padding: 4,
+  },
+  speakerIcon: {
+    fontSize: 20,
   },
   textContainer: {
     backgroundColor: '#f8f8f8',
