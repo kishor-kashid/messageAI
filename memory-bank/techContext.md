@@ -1,6 +1,6 @@
-# Tech Context: MessageAI MVP
+# Tech Context: MessageAI
 
-**Last Updated:** October 21, 2025 (Evening Update)
+**Last Updated:** October 23, 2025 (AI Integration - Frontend Complete with Translation)
 
 ---
 
@@ -57,9 +57,107 @@
    - Push notifications
    - Foreground notifications only for MVP
 
-5. **Cloud Functions** (optional for MVP)
-   - Send notifications on new message
-   - Background processing (if needed)
+5. **Cloud Functions** ✅ **NOW DEPLOYED**
+   - AI feature processing (translation, detection, cultural context, etc.)
+   - Secure OpenAI API proxy
+   - Rate limiting and usage tracking
+   - 8 functions deployed and operational
+
+---
+
+### AI Backend (Firebase Cloud Functions + OpenAI)
+
+**Deployed Functions (October 23, 2025):**
+
+1. **translateMessage** - Real-time translation
+   - Input: text, targetLanguage, sourceLanguage (optional)
+   - Output: translatedText, sourceLanguage, targetLanguage
+   - Model: GPT-4o-mini, Temperature: 0.3, Max tokens: 1000
+
+2. **detectLanguage** - Language detection
+   - Input: text
+   - Output: languageCode (ISO 639-1)
+   - Model: GPT-4o-mini, Temperature: 0.1, Max tokens: 10
+
+3. **explainPhrase** - Cultural phrase explanations
+   - Input: phrase, fullMessage (optional), language (optional)
+   - Output: explanation
+   - Model: GPT-4o-mini, Temperature: 0.7, Max tokens: 150
+
+4. **detectCulturalReferences** - Find idioms/slang (legacy)
+   - Input: text, language (optional)
+   - Output: references array with phrase, startIndex, endIndex
+   - Model: GPT-4o-mini, Temperature: 0.3, Max tokens: 200
+   - Note: Superseded by getCulturalContext for most use cases
+
+5. **getCulturalContext** - Universal cultural context (NEW!)
+   - Input: text, language (optional)
+   - Output: text, culturalContext (comprehensive explanation), language
+   - Explains cultural meaning, usage, idioms, slang, or general context
+   - Works for ANY message (not just idioms/slang)
+   - Model: GPT-4o-mini, Temperature: 0.7, Max tokens: 300
+
+6. **adjustFormality** - Change message tone
+   - Input: text, targetFormality (casual/neutral/formal/professional), language
+   - Output: rewrittenText
+   - Model: GPT-4o-mini, Temperature: 0.7, Max tokens: 200
+
+7. **generateSmartReplies** - Smart reply suggestions
+   - Input: lastMessage, targetLanguage (optional), replyStyle (optional)
+   - Output: replies array (3 suggestions)
+   - Model: GPT-4o-mini, Temperature: 0.8, Max tokens: 250
+
+8. **healthCheck** - Service health verification
+   - HTTP endpoint (not callable)
+   - Returns status and function list
+
+**OpenAI Integration:**
+- API: OpenAI Chat Completions API
+- Model: GPT-4o-mini (cheapest: $0.15/1M input tokens, $0.60/1M output)
+- Client: `openai` npm package (v4.x)
+- Authentication: API key stored in `.env` (local) or Firebase config (deployed)
+
+**Backend Architecture:**
+```
+backend/
+├── src/
+│   ├── utils/
+│   │   ├── functionWrapper.js  # ⭐ Middleware for all functions
+│   │   ├── aiClient.js          # OpenAI API wrapper
+│   │   └── rateLimit.js         # Rate limiting & usage logging
+│   ├── translate.js              # Translation function
+│   ├── detect.js                 # Language detection
+│   ├── culturalContext.js        # 2 functions (explain + detect)
+│   ├── formality.js              # Formality adjustment
+│   └── smartReplies.js           # Smart reply generation
+├── index.js                      # Function exports
+├── package.json                  # Dependencies
+└── .eslintrc.js                  # Linting config
+```
+
+**Middleware Pattern:**
+- All functions use `withAIMiddleware()` wrapper
+- Automatic: authentication, validation, rate limiting, usage logging, error handling
+- 25% code reduction (107 lines eliminated)
+- Reusable validators: `requireString`, `requireEnum`, `optionalString`, `combine`
+
+**Rate Limiting:**
+- 100 AI calls per user per hour (sliding window)
+- Tracked in Firestore `ai_usage_log` collection
+- Prevents abuse and controls costs
+
+**Cost Optimization:**
+- GPT-4o-mini: 200x cheaper than GPT-4
+- Token limits per function (10-1000 tokens)
+- Translation caching (SQLite, ready for implementation)
+- Estimated cost: ~$0.001 per translation
+
+**Deployment:**
+- Project: messageai-c7214
+- Region: us-central1
+- Runtime: Node.js 18
+- All functions: ACTIVE and tested
+- Health check: https://us-central1-messageai-c7214.cloudfunctions.net/healthCheck
 
 ---
 
@@ -420,6 +518,6 @@ unsubscribe();
 
 ---
 
-This tech context reflects the actual state of the technology stack as of October 21, 2025 (Evening Update).  
-**Status: 11/16 PRs Complete - Most Core Tech Decisions Validated**
+This tech context reflects the actual state of the technology stack as of October 23, 2025 (AI Integration - Backend Complete).  
+**Status: MVP 100% + AI Backend Deployed - All Core Tech Decisions Validated + AI Infrastructure Live**
 

@@ -71,6 +71,7 @@ export async function initializeDatabase() {
         timestamp INTEGER NOT NULL,
         status TEXT NOT NULL,
         type TEXT DEFAULT 'text',
+        detected_language TEXT DEFAULT 'en',
         metadata TEXT,
         createdAt INTEGER DEFAULT (strftime('%s', 'now') * 1000),
         updatedAt INTEGER DEFAULT (strftime('%s', 'now') * 1000),
@@ -86,6 +87,17 @@ export async function initializeDatabase() {
       // Column already exists or other error - safe to ignore
       if (!err.message.includes('duplicate column')) {
         console.warn('⚠️ Could not add imageUrl column:', err.message);
+      }
+    }
+
+    // Migration: Add detected_language column if it doesn't exist (for existing databases)
+    try {
+      db.execSync(`ALTER TABLE messages ADD COLUMN detected_language TEXT DEFAULT 'en';`);
+      console.log('✅ Added detected_language column to messages table');
+    } catch (err) {
+      // Column already exists or other error - safe to ignore
+      if (!err.message.includes('duplicate column')) {
+        console.warn('⚠️ Could not add detected_language column:', err.message);
       }
     }
 
@@ -186,6 +198,48 @@ export async function initializeDatabase() {
        ON offline_queue(conversationId);`
     );
 
+    // AI Usage Log table (for rate limiting and cost tracking)
+    db.execSync(
+      `CREATE TABLE IF NOT EXISTS ai_usage_log (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        function_name TEXT NOT NULL,
+        tokens_used INTEGER,
+        estimated_cost REAL,
+        timestamp INTEGER NOT NULL,
+        createdAt INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+      );`
+    );
+
+    // Index for AI usage log
+    db.execSync(
+      `CREATE INDEX IF NOT EXISTS idx_ai_usage_user 
+       ON ai_usage_log(user_id, timestamp DESC);`
+    );
+
+    db.execSync(
+      `CREATE INDEX IF NOT EXISTS idx_ai_usage_function 
+       ON ai_usage_log(function_name);`
+    );
+
+    // Translation Cache table (to reduce API costs)
+    db.execSync(
+      `CREATE TABLE IF NOT EXISTS translation_cache (
+        id TEXT PRIMARY KEY,
+        original_text TEXT NOT NULL,
+        source_language TEXT,
+        target_language TEXT NOT NULL,
+        translated_text TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      );`
+    );
+
+    // Index for translation cache
+    db.execSync(
+      `CREATE INDEX IF NOT EXISTS idx_translation_cache_lookup 
+       ON translation_cache(original_text, target_language);`
+    );
+
     console.log('✅ Database initialized successfully');
   } catch (error) {
     console.error('❌ Database initialization error:', error);
@@ -212,6 +266,8 @@ export async function dropAllTables() {
     db.execSync('DROP TABLE IF EXISTS conversations;');
     db.execSync('DROP TABLE IF EXISTS contacts;');
     db.execSync('DROP TABLE IF EXISTS offline_queue;');
+    db.execSync('DROP TABLE IF EXISTS ai_usage_log;');
+    db.execSync('DROP TABLE IF EXISTS translation_cache;');
     console.log('✅ All tables dropped');
   } catch (error) {
     console.error('❌ Error dropping tables:', error);
@@ -238,6 +294,8 @@ export async function clearAllData() {
     db.execSync('DELETE FROM conversations;');
     db.execSync('DELETE FROM contacts;');
     db.execSync('DELETE FROM offline_queue;');
+    db.execSync('DELETE FROM ai_usage_log;');
+    db.execSync('DELETE FROM translation_cache;');
     console.log('✅ All data cleared');
   } catch (error) {
     console.error('❌ Error clearing data:', error);

@@ -77,7 +77,7 @@ export function useAuth() {
    */
   const completeProfile = async (userId, profileData) => {
     try {
-      const { displayName, profilePictureUri } = profileData;
+      const { displayName, profilePictureUri, preferredLanguage = 'en' } = profileData;
 
       // Upload profile picture if provided
       let profilePictureUrl = null;
@@ -90,6 +90,7 @@ export function useAuth() {
         email: user.email,
         displayName,
         photoURL: profilePictureUrl || '',
+        preferredLanguage,
       });
     } catch (error) {
       throw error;

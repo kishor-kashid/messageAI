@@ -146,11 +146,11 @@ export function formatLastSeen(lastSeen) {
   const hours = Math.floor(diff / 3600000);
   const days = Math.floor(diff / 86400000);
   
-  if (minutes < 1) return 'Active now';
-  if (minutes < 60) return `Active ${minutes}m ago`;
-  if (hours < 24) return `Active ${hours}h ago`;
-  if (days === 1) return 'Active yesterday';
-  if (days < 7) return `Active ${days}d ago`;
+  if (minutes < 1) return 'Last seen just now';
+  if (minutes < 60) return `Last seen ${minutes}m ago`;
+  if (hours < 24) return `Last seen ${hours}h ago`;
+  if (days === 1) return 'Last seen yesterday';
+  if (days < 7) return `Last seen ${days}d ago`;
   
   return 'Offline';
 }

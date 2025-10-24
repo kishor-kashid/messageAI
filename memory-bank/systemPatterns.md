@@ -1,6 +1,6 @@
-# System Patterns: MessageAI MVP
+# System Patterns: MessageAI
 
-**Last Updated:** October 21, 2025 (Evening Update)
+**Last Updated:** October 23, 2025 (AI Integration - Backend Patterns)
 
 ---
 
@@ -330,6 +330,507 @@ App Root (_layout.jsx)
 
 ---
 
+## Discovered Patterns (October 23, 2025 - AI Backend)
+
+### 17. Cloud Functions Middleware Pattern
+
+**Problem:** Repeated authentication, validation, rate limiting code in every Cloud Function  
+**Solution:** Create a centralized middleware wrapper that handles common concerns
+
+```javascript
+// backend/src/utils/functionWrapper.js
+function withAIMiddleware(handler, options = {}) {
+  return functions.https.onCall(async (data, context) => {
+    const startTime = Date.now();
+    
+    try {
+      // 1. Authentication Check
+      if (!context.auth) {
+        throw new functions.https.HttpsError(
+          "unauthenticated",
+          options.authMessage || "Must be logged in to use AI features."
+        );
+      }
+      
+      const userId = context.auth.uid;
+      
+      // 2. Input Validation (if schema provided)
+      if (options.validate) {
+        options.validate(data);
+      }
+      
+      // 3. Rate Limiting
+      if (options.skipRateLimit !== true) {
+        await checkRateLimit(userId);
+      }
+      
+      // 4. Call the actual handler
+      const result = await handler(data, userId, context);
+      
+      // 5. Usage Logging
+      if (options.functionName && result._aiMetadata) {
+        const tokens = estimateTokens(
+          result._aiMetadata.prompt + result._aiMetadata.response
+        );
+        await logAIUsage(userId, options.functionName, tokens);
+      }
+      
+      // Remove metadata from response
+      if (result._aiMetadata) {
+        delete result._aiMetadata;
+      }
+      
+      // 6. Log success metrics
+      const duration = Date.now() - startTime;
+      console.log(`✅ ${options.functionName} success: ${duration}ms (user: ${userId})`);
+      
+      return result;
+    } catch (error) {
+      // 7. Centralized Error Handling
+      const duration = Date.now() - startTime;
+      console.error(`❌ ${options.functionName} error (${duration}ms):`, error);
+      
+      if (error instanceof functions.https.HttpsError) {
+        throw error;
+      }
+      
+      throw new functions.https.HttpsError(
+        "internal",
+        options.errorMessage || "An error occurred processing your request."
+      );
+    }
+  });
+}
+
+// Reusable Validators
+const validators = {
+  requireString(fieldName) {
+    return (data) => {
+      if (!data[fieldName] || typeof data[fieldName] !== "string") {
+        throw new functions.https.HttpsError(
+          "invalid-argument",
+          `${fieldName} is required and must be a string.`
+        );
+      }
+    };
+  },
+  
+  requireEnum(fieldName, allowedValues) {
+    return (data) => {
+      if (!allowedValues.includes(data[fieldName])) {
+        throw new functions.https.HttpsError(
+          "invalid-argument",
+          `${fieldName} must be one of: ${allowedValues.join(", ")}`
+        );
+      }
+    };
+  },
+  
+  optionalString(fieldName) {
+    return (data) => {
+      if (data[fieldName] !== undefined && typeof data[fieldName] !== "string") {
+        throw new functions.https.HttpsError(
+          "invalid-argument",
+          `${fieldName} must be a string if provided.`
+        );
+      }
+    };
+  },
+  
+  combine(...validatorFuncs) {
+    return (data) => {
+      validatorFuncs.forEach((validator) => validator(data));
+    };
+  },
+};
+```
+
+**Usage - Before (69 lines of boilerplate):**
+```javascript
+exports.translateMessage = functions.https.onCall(async (data, context) => {
+  // Auth check (6 lines)
+  if (!context.auth) {
+    throw new functions.https.HttpsError(
+      "unauthenticated",
+      "Must be logged in to use translation."
+    );
+  }
+  
+  const userId = context.auth.uid;
+  
+  // Validation (10-15 lines)
+  if (!data.text || typeof data.text !== "string") {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "Text is required and must be a string."
+    );
+  }
+  
+  if (!data.targetLanguage || typeof data.targetLanguage !== "string") {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "Target language is required."
+    );
+  }
+  
+  // Rate limiting (1 line)
+  await checkRateLimit(userId);
+  
+  // BUSINESS LOGIC (10-15 lines)
+  const prompt = `Translate this message to ${data.targetLanguage}...`;
+  const translation = await callOpenAI(prompt, {...});
+  
+  // Usage logging (2 lines)
+  const tokens = estimateTokens(prompt + translation);
+  await logAIUsage(userId, "translate", tokens);
+  
+  return {...};
+});
+```
+
+**Usage - After (46 lines total, 38 pure business logic):**
+```javascript
+exports.translateMessage = withAIMiddleware(
+  async (data, userId) => {
+    const {text, targetLanguage, sourceLanguage} = data;
+    
+    // ONLY BUSINESS LOGIC - No boilerplate!
+    const prompt = `Translate this message to ${targetLanguage}...`;
+    const translation = await callOpenAI(prompt, {...});
+    
+    return {
+      originalText: text,
+      translatedText: translation.trim(),
+      sourceLanguage: sourceLanguage || "auto",
+      targetLanguage: targetLanguage,
+      _aiMetadata: {prompt, response: translation}, // Auto-logged
+    };
+  },
+  {
+    functionName: "translate",
+    authMessage: "Must be logged in to use translation.",
+    validate: validators.combine(
+      validators.requireString("text"),
+      validators.requireString("targetLanguage"),
+      validators.optionalString("sourceLanguage"),
+    ),
+  }
+);
+```
+
+**Benefits:**
+- 25% code reduction across all functions (107 lines eliminated)
+- Functions focus on business logic only
+- Change middleware once → affects all functions
+- Consistent behavior across all endpoints
+- Easier to test (test middleware once)
+- Better error handling (centralized)
+- Automatic performance tracking
+- Single source of truth for common logic
+
+**Why this works:**
+- Higher-order function pattern (function that returns a function)
+- Separation of concerns (middleware vs business logic)
+- DRY principle (Don't Repeat Yourself)
+- Composition over inheritance
+- Each function still has full access to `data`, `userId`, and `context`
+
+### 18. Prompt Engineering Pattern for OpenAI
+
+**Problem:** Need consistent, high-quality AI responses  
+**Solution:** Well-structured prompts with clear instructions and constraints
+
+```javascript
+// Translation prompt
+const prompt = `Translate this message to ${targetLanguage}.
+Preserve the tone and emotion. If there are emojis, keep them.
+Only return the translation, no explanations.
+
+Original text: "${text}"`;
+
+// Formality adjustment prompt
+const prompt = `Rewrite this message with a ${targetFormality} tone:
+
+Original: "${text}"
+Language: ${language || "auto-detect"}
+
+Style guide: ${formalityLevels[targetFormality]}
+
+Rules:
+- Keep the same meaning
+- Preserve important details
+- Match the target formality level
+- Return ONLY the rewritten text, no explanations
+
+Rewritten message:`;
+```
+
+**Key Principles:**
+1. **Clear task definition** - Tell the model exactly what to do
+2. **Context provision** - Give relevant information (language, tone)
+3. **Output format** - Specify expected response format
+4. **Constraints** - "Only return X, no explanations"
+5. **Examples** - Show desired output format when complex
+
+**Temperature Settings:**
+- Low (0.1-0.3): Deterministic, consistent (language detection, translation)
+- Medium (0.7): Balanced creativity (formality, cultural context)
+- High (0.8): More varied outputs (smart replies)
+
+**Token Limits:**
+- Tight limits save costs: 10 tokens (language code), 150 tokens (explanation)
+- Prevents overly verbose responses
+- Forces model to be concise
+
+## Discovered Patterns (October 22, 2025)
+
+### 13. WhatsApp-Style Read Receipts for Groups
+
+**Problem:** Group chats need per-user read tracking, not binary read status  
+**Solution:** Track which users have read each message in a `readBy` array
+
+```javascript
+// Message schema in Firestore
+{
+  id: 'msg123',
+  conversationId: 'conv123',
+  senderId: 'user1',
+  content: 'Hello everyone!',
+  readBy: ['user1', 'user2'], // Array of user IDs who have read
+  status: 'delivered', // Set to 'read' only when ALL participants read
+  timestamp: timestamp
+}
+
+// markMessagesAsRead for groups
+async function markMessagesAsRead(conversationId, messageIds, userId, conversation) {
+  if (conversation.type === 'group') {
+    const messageRef = doc(db, 'conversations', conversationId, 'messages', messageId);
+    const messageSnap = await getDoc(messageRef);
+    const messageData = messageSnap.data();
+    const currentReadBy = messageData.readBy || [];
+    
+    if (!currentReadBy.includes(userId)) {
+      const updatedReadBy = [...currentReadBy, userId];
+      const participantsExceptSender = conversation.participantIds.filter(
+        id => id !== messageData.senderId
+      );
+      const allRead = participantsExceptSender.every(id => updatedReadBy.includes(id));
+      
+      const updateData = {
+        readBy: arrayUnion(userId), // Add user to readBy array
+      };
+      
+      if (allRead) {
+        updateData.status = 'read'; // Set to 'read' only when ALL read
+        updateData.readAt = serverTimestamp();
+      }
+      
+      await updateDoc(messageRef, updateData);
+    }
+  }
+}
+```
+
+**Visual Indicators:**
+- ✓ (single checkmark) - Sent
+- ✓✓ (gray double checkmark) - Some participants read
+- ✓✓ (blue double checkmark) - All participants read
+
+**Why this works:**
+- Scales to groups of any size
+- Matches WhatsApp user expectations
+- Provides detailed read receipts (long press → Message Info)
+- `arrayUnion` prevents duplicate entries
+- Status only changes when ALL non-sender participants read
+
+### 14. On-Demand Presence Fetching Pattern
+
+**Problem:** Continuous presence subscriptions for group members can cause excessive updates and incorrect status  
+**Solution:** Fetch presence data only when the UI component needs it
+
+```javascript
+// BAD: Continuous subscription in parent component
+useEffect(() => {
+  const unsubscribe = listenToMultiplePresences(participantIds, (presenceMap) => {
+    setPresenceData(presenceMap); // Fires on every presence change
+  });
+  return () => unsubscribe();
+}, [participantIds]);
+
+// GOOD: On-demand fetch in modal
+useEffect(() => {
+  if (!visible || participants.length === 0) return;
+  
+  async function fetchPresence() {
+    const participantIds = participants.map(p => p.id);
+    const presenceMap = await getMultiplePresences(participantIds); // One-time fetch
+    
+    const updatedParticipants = participants.map(participant => ({
+      ...participant,
+      isOnline: presenceMap[participant.id]?.isOnline || false,
+      lastSeen: presenceMap[participant.id]?.lastSeen,
+    }));
+    
+    setParticipantsWithPresence(updatedParticipants);
+  }
+  
+  fetchPresence();
+}, [visible, participants]); // Only fetch when modal opens
+```
+
+**Benefits:**
+- Reduces unnecessary Firestore reads
+- Shows accurate status at the moment user views it
+- No continuous background updates for hidden UI
+- Cleaner console logs (no excessive presence updates)
+- Better performance
+
+### 15. Scroll-to-Unread Pattern (WhatsApp-style)
+
+**Problem:** Users should see unread messages first when opening a chat  
+**Solution:** Track first unread message and scroll to it on mount
+
+```javascript
+// Identify first unread message (ChatScreen)
+const [firstUnreadMessageId, setFirstUnreadMessageId] = useState(null);
+
+useEffect(() => {
+  if (!messages || messages.length === 0 || !user) return;
+  
+  if (firstUnreadMessageId === null) { // Only set once on initial load
+    const firstUnread = messages.find(
+      msg => msg.senderId !== user.uid && msg.status !== 'read'
+    );
+    
+    if (firstUnread) {
+      setFirstUnreadMessageId(firstUnread.id);
+    }
+  }
+}, [messages, user, firstUnreadMessageId]);
+
+// Reset on conversation change
+useEffect(() => {
+  setFirstUnreadMessageId(null);
+}, [conversationId]);
+
+// Scroll to unread in MessageList
+useEffect(() => {
+  if (messages.length > 0 && flatListRef.current && !hasScrolledToUnread.current) {
+    setTimeout(() => {
+      if (firstUnreadMessageId) {
+        const unreadIndex = messages.findIndex(m => m.id === firstUnreadMessageId);
+        
+        if (unreadIndex !== -1) {
+          try {
+            flatListRef.current.scrollToIndex({ 
+              index: unreadIndex, 
+              animated: false,
+              viewPosition: 0.2 // Show unread message 20% from top
+            });
+          } catch (error) {
+            // Fallback if scrollToIndex fails
+            flatListRef.current.scrollToEnd({ animated: false });
+          }
+        }
+      } else {
+        // No unreads - scroll to bottom
+        flatListRef.current.scrollToEnd({ animated: false });
+      }
+      
+      hasScrolledToUnread.current = true;
+    }, 500); // Delay to ensure layout complete
+  }
+}, [messages.length, firstUnreadMessageId]);
+
+// Add onScrollToIndexFailed handler for retry
+const handleScrollToIndexFailed = (info) => {
+  setTimeout(() => {
+    if (flatListRef.current && info.index < messages.length) {
+      try {
+        flatListRef.current.scrollToIndex({ 
+          index: info.index, 
+          animated: false,
+          viewPosition: 0.2 
+        });
+      } catch (error) {
+        flatListRef.current.scrollToEnd({ animated: false });
+      }
+    }
+  }, 100);
+};
+```
+
+**Visual Enhancement:**
+```javascript
+// Show "Unread messages" divider
+{showUnreadDivider && (
+  <View style={styles.unreadDivider}>
+    <View style={styles.unreadDividerLine} />
+    <Text style={styles.unreadDividerText}>Unread messages</Text>
+    <View style={styles.unreadDividerLine} />
+  </View>
+)}
+```
+
+**Key Learnings:**
+- `scrollToIndex` requires items to be laid out (use delay)
+- `onScrollToIndexFailed` provides retry mechanism
+- `viewPosition: 0.2` shows context above unread message
+- Always have fallback to `scrollToEnd`
+- Reset scroll flag when changing conversations
+
+### 16. Optimistic Message Cleanup for Offline Sync
+
+**Problem:** Optimistic messages can duplicate after offline sync  
+**Solution:** Clean up queued optimistic messages that have been synced
+
+```javascript
+// In useMessages hook
+const updateMessages = useCallback(async () => {
+  const firestoreMessages = firestoreMessagesRef.current;
+  const optimisticArray = Array.from(optimisticMessages.current.values());
+  
+  // Existing cleanup by content/senderId (for online sends)
+  optimisticArray.forEach(optMsg => {
+    const matchingFirestoreMsg = firestoreMessages.find(
+      fm => fm.senderId === optMsg.senderId && 
+            fm.content === optMsg.content && 
+            Math.abs(fm.timestamp - optMsg.timestamp) < 5000
+    );
+    if (matchingFirestoreMsg) {
+      optimisticMessages.current.delete(optMsg.id);
+    }
+  });
+  
+  // NEW: Clean up queued messages that have been synced
+  const queuedOptimisticMessages = Array.from(optimisticMessages.current.values())
+    .filter(msg => msg.status === 'queued' && msg.id.startsWith('temp-'));
+  
+  if (queuedOptimisticMessages.length > 0 && conversationId) {
+    const localMessages = await getLocalMessages(conversationId);
+    const localMessageIds = new Set(localMessages.map(m => m.id));
+    
+    queuedOptimisticMessages.forEach(queuedMsg => {
+      if (!localMessageIds.has(queuedMsg.id)) {
+        // Message no longer in local DB = successfully synced and removed
+        optimisticMessages.current.delete(queuedMsg.id);
+      }
+    });
+  }
+  
+  // Merge and sort messages
+  const allMessages = [...firestoreMessages, ...Array.from(optimisticMessages.current.values())];
+  const sortedMessages = allMessages.sort((a, b) => a.timestamp - b.timestamp);
+  setMessages(sortedMessages);
+}, [conversationId]);
+```
+
+**Why this works:**
+- messageSync.js removes synced messages from local database
+- Checking local DB tells us which messages have been synced
+- Prevents orange "queued" messages from persisting after sync
+- User sees seamless transition from queued → sent
+
 ## Discovered Patterns (October 21, 2025)
 
 ### 5. Optimistic Message Deduplication
@@ -577,6 +1078,6 @@ export function useNetworkStatus() {
 
 ---
 
-This system patterns document reflects discovered patterns from actual implementation as of October 21, 2025 (Evening Update).  
-**Status: 11/16 PRs Complete - Most Core Patterns Established**
+This system patterns document reflects discovered patterns from actual implementation as of October 22, 2025 (Post-MVP Enhancements).  
+**Status: 14/16 PRs Complete + Advanced Features - All Core Patterns Established**
 

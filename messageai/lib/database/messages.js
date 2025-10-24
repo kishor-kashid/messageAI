@@ -25,6 +25,7 @@ const isSQLiteAvailable = Platform.OS !== 'web';
  * @param {number} message.timestamp - Message timestamp
  * @param {string} message.status - Message status (sent, delivered, read, pending, failed)
  * @param {string} [message.type='text'] - Message type (text, image, etc.)
+ * @param {string} [message.detected_language='en'] - Detected language code
  * @param {Object} [message.metadata] - Additional metadata
  * @returns {Promise<void>}
  */
@@ -43,6 +44,7 @@ export async function saveMessage(message) {
     timestamp,
     status,
     type = 'text',
+    detected_language = 'en',
     metadata = null,
   } = message;
 
@@ -54,9 +56,9 @@ export async function saveMessage(message) {
   try {
     db.runSync(
       `INSERT OR REPLACE INTO messages 
-       (id, conversationId, senderId, content, imageUrl, timestamp, status, type, metadata, updatedAt) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
-      [id, conversationId, senderId, contentValue, imageUrl, timestamp, status, type, metadataJson, now]
+       (id, conversationId, senderId, content, imageUrl, timestamp, status, type, detected_language, metadata, updatedAt) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      [id, conversationId, senderId, contentValue, imageUrl, timestamp, status, type, detected_language, metadataJson, now]
     );
     console.log(`✅ Message saved: ${id}`);
   } catch (error) {
@@ -268,6 +270,7 @@ export async function bulkSaveMessages(messages) {
         timestamp,
         status,
         type = 'text',
+        detected_language = 'en',
         metadata = null,
       } = message;
 
@@ -277,9 +280,9 @@ export async function bulkSaveMessages(messages) {
 
       return {
         sql: `INSERT OR REPLACE INTO messages 
-              (id, conversationId, senderId, content, imageUrl, timestamp, status, type, metadata, updatedAt) 
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
-        args: [id, conversationId, senderId, contentValue, imageUrl, timestamp, status, type, metadataJson, now]
+              (id, conversationId, senderId, content, imageUrl, timestamp, status, type, detected_language, metadata, updatedAt) 
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        args: [id, conversationId, senderId, contentValue, imageUrl, timestamp, status, type, detected_language, metadataJson, now]
       };
     });
 

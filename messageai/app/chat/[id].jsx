@@ -33,6 +33,9 @@ import { MessageInput } from '../../components/chat/MessageInput';
 import { ConversationHeader } from '../../components/conversations/ConversationHeader';
 import { TypingIndicator } from '../../components/chat/TypingIndicator';
 import { GroupParticipantsModal } from '../../components/chat/GroupParticipantsModal';
+import { ReadReceiptsModal } from '../../components/chat/ReadReceiptsModal';
+import TranslationModal from '../../components/chat/TranslationModal';
+import CulturalContextModal from '../../components/chat/CulturalContextModal';
 
 export default function ChatScreen() {
   const { id: conversationId } = useLocalSearchParams();
@@ -47,6 +50,11 @@ export default function ChatScreen() {
   const [senderProfiles, setSenderProfiles] = useState({});
   const [showGroupParticipants, setShowGroupParticipants] = useState(false);
   const [firstUnreadMessageId, setFirstUnreadMessageId] = useState(null);
+  const [selectedMessageForInfo, setSelectedMessageForInfo] = useState(null);
+  const [showTranslation, setShowTranslation] = useState(false);
+  const [selectedMessageForTranslation, setSelectedMessageForTranslation] = useState(null);
+  const [showCulturalContext, setShowCulturalContext] = useState(false);
+  const [selectedMessageForCulturalContext, setSelectedMessageForCulturalContext] = useState(null);
   
   const {
     messages,
@@ -131,7 +139,7 @@ export default function ChatScreen() {
     loadConversation();
   }, [conversationId, user, router]);
 
-  // Subscribe to other participant's presence
+  // Subscribe to other participant's presence (direct chat)
   useEffect(() => {
     if (!conversation || conversation.type !== 'direct' || !user) return;
     
@@ -156,6 +164,8 @@ export default function ChatScreen() {
       if (unsubscribe) unsubscribe();
     };
   }, [conversation, user]);
+
+  // Presence is now fetched on-demand when modal opens (see GroupParticipantsModal)
 
   // Subscribe to typing indicators
   useEffect(() => {
@@ -263,6 +273,39 @@ export default function ChatScreen() {
     setShowGroupParticipants(false);
   };
 
+  const handleShowMessageInfo = (message) => {
+    console.log('📊 Showing message info for:', message.id);
+    setSelectedMessageForInfo(message);
+  };
+
+  const handleCloseMessageInfo = () => {
+    setSelectedMessageForInfo(null);
+  };
+
+  // Translation handlers
+  const handleTranslate = (message) => {
+    console.log('🌍 Translating message:', message.id);
+    setSelectedMessageForTranslation(message);
+    setShowTranslation(true);
+  };
+
+  const handleCloseTranslation = () => {
+    setShowTranslation(false);
+    setSelectedMessageForTranslation(null);
+  };
+
+  // Cultural context handlers
+  const handleShowCulturalContext = (message) => {
+    console.log('🎭 Showing cultural context for message:', message.id);
+    setSelectedMessageForCulturalContext(message);
+    setShowCulturalContext(true);
+  };
+
+  const handleCloseCulturalContext = () => {
+    setShowCulturalContext(false);
+    setSelectedMessageForCulturalContext(null);
+  };
+
   // Cleanup typing timeout on unmount
   useEffect(() => {
     return () => {
@@ -318,14 +361,15 @@ export default function ChatScreen() {
             senderProfiles={senderProfiles}
             conversation={conversation}
             firstUnreadMessageId={firstUnreadMessageId}
+            onShowMessageInfo={handleShowMessageInfo}
+            onTranslate={handleTranslate}
+            onShowCulturalContext={handleShowCulturalContext}
           />
           
           {/* Typing Indicator */}
           <TypingIndicator
             typingUserIds={typingUserIds}
-            participants={{
-              [otherParticipant?.id]: otherParticipant,
-            }}
+            participants={conversation?.type === 'group' ? senderProfiles : { [otherParticipant?.id]: otherParticipant }}
           />
         </View>
         
@@ -354,6 +398,33 @@ export default function ChatScreen() {
           currentUserId={user?.uid}
         />
       )}
+
+      {/* Read Receipts Modal (WhatsApp-style Message Info) */}
+      <ReadReceiptsModal
+        visible={!!selectedMessageForInfo}
+        onClose={handleCloseMessageInfo}
+        message={selectedMessageForInfo}
+        participants={conversation?.type === 'group' 
+          ? senderProfiles 
+          : (otherParticipant ? { [otherParticipant.id]: otherParticipant } : {})
+        }
+        currentUserId={user?.uid}
+      />
+
+      {/* Translation Modal */}
+      <TranslationModal
+        visible={showTranslation}
+        onClose={handleCloseTranslation}
+        originalText={selectedMessageForTranslation?.content || ''}
+        sourceLanguage={selectedMessageForTranslation?.detected_language}
+      />
+
+      {/* Cultural Context Modal */}
+      <CulturalContextModal
+        visible={showCulturalContext}
+        onClose={handleCloseCulturalContext}
+        message={selectedMessageForCulturalContext}
+      />
     </SafeAreaView>
   );
 }
