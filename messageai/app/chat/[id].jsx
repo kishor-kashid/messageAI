@@ -409,6 +409,7 @@ export default function ChatScreen() {
             onShowMessageInfo={handleShowMessageInfo}
             onTranslate={handleTranslate}
             onShowCulturalContext={handleShowCulturalContext}
+            userLanguage={user?.preferredLanguage || 'en'}
           />
           
           {/* Typing Indicator */}

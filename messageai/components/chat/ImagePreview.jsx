@@ -2,6 +2,7 @@
  * Image Preview Component
  * 
  * Full-screen modal for viewing images with close functionality
+ * and OCR translation support
  */
 
 import React from 'react';
@@ -15,17 +16,23 @@ import {
   SafeAreaView,
   ActivityIndicator,
   Text,
+  Alert,
+  Platform,
+  ActionSheetIOS,
 } from 'react-native';
+import { ImageTranslationModal } from './ImageTranslationModal';
 
 /**
  * @param {Object} props
  * @param {boolean} props.visible - Whether modal is visible
  * @param {string} props.imageUrl - URL of image to display
  * @param {Function} props.onClose - Callback when close button pressed
+ * @param {string} props.userLanguage - User's preferred language for translation
  */
-export function ImagePreview({ visible, imageUrl, onClose }) {
+export function ImagePreview({ visible, imageUrl, onClose, userLanguage = 'en' }) {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(false);
+  const [showTranslationModal, setShowTranslationModal] = React.useState(false);
 
   // Reset loading state when image URL changes
   React.useEffect(() => {
@@ -42,6 +49,39 @@ export function ImagePreview({ visible, imageUrl, onClose }) {
   const handleImageError = () => {
     setLoading(false);
     setError(true);
+  };
+
+  const handleLongPress = () => {
+    if (Platform.OS === 'ios') {
+      // iOS Action Sheet
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', 'Translate text in image'],
+          cancelButtonIndex: 0,
+          title: 'Image Options',
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) {
+            setShowTranslationModal(true);
+          }
+        }
+      );
+    } else {
+      // Android Alert
+      Alert.alert(
+        'Image Options',
+        'Choose an action',
+        [
+          { text: 'Translate text in image', onPress: () => setShowTranslationModal(true) },
+          { text: 'Cancel', style: 'cancel' },
+        ],
+        { cancelable: true }
+      );
+    }
+  };
+
+  const handleCloseTranslationModal = () => {
+    setShowTranslationModal(false);
   };
 
   return (
@@ -75,7 +115,12 @@ export function ImagePreview({ visible, imageUrl, onClose }) {
 
         {/* Image */}
         {imageUrl && (
-          <View style={styles.imageContainer}>
+          <TouchableOpacity
+            style={styles.imageContainer}
+            activeOpacity={0.95}
+            onLongPress={handleLongPress}
+            delayLongPress={500}
+          >
             {loading && (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="#FFFFFF" />
@@ -97,9 +142,24 @@ export function ImagePreview({ visible, imageUrl, onClose }) {
               onLoad={handleImageLoad}
               onError={handleImageError}
             />
+          </TouchableOpacity>
+        )}
+
+        {/* Translation Help Text */}
+        {!loading && !error && (
+          <View style={styles.hintContainer}>
+            <Text style={styles.hintText}>💡 Long press image to translate text</Text>
           </View>
         )}
       </View>
+
+      {/* Image Translation Modal */}
+      <ImageTranslationModal
+        visible={showTranslationModal}
+        imageUrl={imageUrl}
+        onClose={handleCloseTranslationModal}
+        userLanguage={userLanguage}
+      />
     </Modal>
   );
 }
@@ -166,6 +226,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#FFFFFF',
     textAlign: 'center',
+  },
+  hintContainer: {
+    position: 'absolute',
+    bottom: 60,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  hintText: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
   },
 });
 

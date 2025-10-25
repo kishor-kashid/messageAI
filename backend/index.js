@@ -17,6 +17,7 @@ const detect = require("./src/detect");
 const culturalContext = require("./src/culturalContext");
 const formality = require("./src/formality");
 const smartReplies = require("./src/smartReplies");
+const imageOCR = require("./src/imageOCR");
 
 // Export all AI functions
 exports.translateMessage = translate.translateMessage;
@@ -26,6 +27,7 @@ exports.detectCulturalReferences = culturalContext.detectCulturalReferences;
 exports.getCulturalContext = culturalContext.getCulturalContext;
 exports.adjustFormality = formality.adjustFormality;
 exports.generateSmartReplies = smartReplies.generateSmartReplies;
+exports.extractImageText = imageOCR.extractImageText;
 
 // Health check function
 exports.healthCheck = functions.https.onRequest((req, res) => {
@@ -40,6 +42,7 @@ exports.healthCheck = functions.https.onRequest((req, res) => {
       "getCulturalContext",
       "adjustFormality",
       "generateSmartReplies",
+      "extractImageText",
     ],
   });
 });
