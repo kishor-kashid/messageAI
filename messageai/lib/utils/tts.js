@@ -5,6 +5,7 @@
  */
 
 import * as Speech from 'expo-speech';
+import { getLanguageName as getLanguageDisplayName } from './languageHelpers';
 
 // Track currently playing speech to prevent overlaps
 let currentSpeechId = null;
@@ -183,25 +184,6 @@ export const isLanguageSupported = async (languageCode) => {
  * @returns {string} - Human-readable language name
  */
 export const getLanguageName = (languageCode) => {
-  const languageNames = {
-    'en': 'English',
-    'es': 'Spanish',
-    'fr': 'French',
-    'de': 'German',
-    'it': 'Italian',
-    'pt': 'Portuguese',
-    'ru': 'Russian',
-    'ja': 'Japanese',
-    'ko': 'Korean',
-    'zh': 'Chinese',
-    'ar': 'Arabic',
-    'hi': 'Hindi',
-    'nl': 'Dutch',
-    'pl': 'Polish',
-    'tr': 'Turkish',
-    'sv': 'Swedish',
-  };
-
-  return languageNames[languageCode?.toLowerCase()] || languageCode;
+  return getLanguageDisplayName(languageCode) || languageCode;
 };
 
