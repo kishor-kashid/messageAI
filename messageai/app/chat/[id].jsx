@@ -36,6 +36,7 @@ import { GroupParticipantsModal } from '../../components/chat/GroupParticipantsM
 import { ReadReceiptsModal } from '../../components/chat/ReadReceiptsModal';
 import TranslationModal from '../../components/chat/TranslationModal';
 import CulturalContextModal from '../../components/chat/CulturalContextModal';
+import SmartReplyChips from '../../components/chat/SmartReplyChips';
 
 export default function ChatScreen() {
   const { id: conversationId } = useLocalSearchParams();
@@ -56,6 +57,11 @@ export default function ChatScreen() {
   const [showCulturalContext, setShowCulturalContext] = useState(false);
   const [selectedMessageForCulturalContext, setSelectedMessageForCulturalContext] = useState(null);
   
+  // Smart Replies states
+  const [showSmartReplies, setShowSmartReplies] = useState(false);
+  const [lastReceivedMessage, setLastReceivedMessage] = useState(null);
+  const [userTyping, setUserTyping] = useState(false);
+  
   const {
     messages,
     loading: loadingMessages,
@@ -67,6 +73,24 @@ export default function ChatScreen() {
 
   // Typing timeout ref
   const typingTimeoutRef = useRef(null);
+
+  // Track last received message for smart replies
+  useEffect(() => {
+    if (!messages || messages.length === 0 || !user) return;
+
+    // Find the last message that is NOT from the current user
+    const lastReceived = messages
+      .filter(msg => msg.senderId !== user.uid)
+      .sort((a, b) => b.timestamp - a.timestamp)[0];
+
+    if (lastReceived && lastReceived.id !== lastReceivedMessage?.id) {
+      setLastReceivedMessage(lastReceived);
+      // Show smart replies for new received messages
+      if (!userTyping) {
+        setShowSmartReplies(true);
+      }
+    }
+  }, [messages, user, lastReceivedMessage, userTyping]);
 
   // Track current screen for notification silencing
   useEffect(() => {
@@ -229,6 +253,18 @@ export default function ChatScreen() {
   const handleTextChange = useCallback((text) => {
     if (!conversationId || !user) return;
 
+    // Hide smart replies when user starts typing
+    if (text.length > 0 && !userTyping) {
+      setUserTyping(true);
+      setShowSmartReplies(false);
+    } else if (text.length === 0 && userTyping) {
+      setUserTyping(false);
+      // Show smart replies again if text is cleared
+      if (lastReceivedMessage) {
+        setShowSmartReplies(true);
+      }
+    }
+
     // Clear existing timeout
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
@@ -264,6 +300,15 @@ export default function ChatScreen() {
       Alert.alert('Error', 'Failed to send message. Please try again.');
     }
   };
+
+  // Handle smart reply selection
+  const handleSmartReplySelect = useCallback((reply) => {
+    // Send the selected reply immediately
+    handleSendMessage(reply);
+    // Hide smart replies after selection
+    setShowSmartReplies(false);
+    setUserTyping(false);
+  }, [handleSendMessage]);
 
   const handleShowGroupParticipants = () => {
     setShowGroupParticipants(true);
@@ -372,6 +417,15 @@ export default function ChatScreen() {
             participants={conversation?.type === 'group' ? senderProfiles : { [otherParticipant?.id]: otherParticipant }}
           />
         </View>
+        
+        {/* Smart Reply Chips */}
+        <SmartReplyChips
+          lastMessage={lastReceivedMessage}
+          conversationId={conversationId}
+          targetLanguage={user?.preferredLanguage}
+          onReplySelect={handleSmartReplySelect}
+          visible={showSmartReplies && !userTyping}
+        />
         
         <MessageInput
           conversationId={conversationId}
