@@ -93,15 +93,21 @@ const callFunction = async (functionName, data) => {
   } catch (error) {
     console.error(`Error calling ${functionName}:`, error);
     
-    // Parse Firebase Functions errors
+    // Parse Firebase Functions errors and map to error types
     if (error.code === 'functions/unauthenticated') {
-      throw new Error('You must be logged in to use AI features.');
-    } else if (error.code === 'functions/permission-denied') {
-      throw new Error('Rate limit exceeded. Please try again later.');
+      const err = new Error('You must be logged in to use AI features.');
+      err.type = 'AUTH';
+      throw err;
+    } else if (error.code === 'functions/resource-exhausted') {
+      const err = new Error('Rate limit exceeded. Please try again in a few minutes.');
+      err.type = 'RATE_LIMIT';
+      throw err;
     } else if (error.code === 'functions/invalid-argument') {
       throw new Error(error.message || 'Invalid input provided.');
     } else if (error.code === 'functions/unavailable') {
-      throw new Error('AI service is temporarily unavailable. Please try again.');
+      const err = new Error('AI service is temporarily unavailable. Please try again.');
+      err.type = 'NETWORK';
+      throw err;
     }
     
     throw new Error(error.message || 'An error occurred with the AI service.');
@@ -281,7 +287,6 @@ export const getCachedTranslation = async (text, targetLanguage, sourceLanguage 
   
   // Check cache
   if (translationCache.has(cacheKey)) {
-    console.log('Translation cache hit:', cacheKey);
     return translationCache.get(cacheKey);
   }
   
@@ -316,7 +321,6 @@ export const getCachedCulturalContext = async (text, language = null) => {
   
   // Check cache
   if (culturalContextCache.has(cacheKey)) {
-    console.log('Cultural context cache hit:', cacheKey);
     return culturalContextCache.get(cacheKey);
   }
   
@@ -397,20 +401,17 @@ export const extractImageText = async (imageUrl) => {
       
       // Check if cache is still valid (24 hours)
       if (now - timestamp < OCR_CACHE_DURATION) {
-        console.log('📦 OCR cache hit:', imageUrl);
         return { ...result, cached: true };
-      } else {
-        // Cache expired, remove it
-        await storage.removeItem(cacheKey);
       }
+      // Cache expired, remove it
+      await storage.removeItem(cacheKey);
     }
   } catch (error) {
     console.error('Error checking OCR cache:', error);
   }
 
   // Call Cloud Function
-  console.log('🔍 Calling extractImageText for:', imageUrl);
-  const result = await callFunction('extractImageText', { imageUrl });
+  const result = await callFunction('extractImageText', { imageUrl});
 
   // Cache the result
   try {
@@ -419,7 +420,6 @@ export const extractImageText = async (imageUrl) => {
       timestamp: Date.now(),
     };
     await storage.setItem(cacheKey, JSON.stringify(cacheData));
-    console.log('💾 OCR result cached');
   } catch (error) {
     console.error('Error caching OCR result:', error);
   }
@@ -435,7 +435,6 @@ export const clearOCRCache = async () => {
     const keys = await storage.getAllKeys();
     const ocrKeys = keys.filter(key => key.startsWith(OCR_CACHE_PREFIX));
     await storage.multiRemove(ocrKeys);
-    console.log(`🗑️ Cleared ${ocrKeys.length} OCR cache entries`);
   } catch (error) {
     console.error('Error clearing OCR cache:', error);
   }

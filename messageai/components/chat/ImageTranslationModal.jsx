@@ -18,8 +18,29 @@ import {
   Alert,
   Clipboard,
 } from 'react-native';
-import { extractImageText } from '../../lib/api/aiService';
-import { translateMessage } from '../../lib/api/aiService';
+import { extractImageText, translateMessage } from '../../lib/api/aiService';
+import { getLanguageFlag, getLanguageName } from '../../lib/utils/languageHelpers';
+import { AILoadingState } from '../ai/AILoadingState';
+import { AIErrorState } from '../ai/AIErrorState';
+
+// Error message configurations
+const ERROR_MESSAGES = {
+  NO_TEXT_DETECTED: {
+    icon: '🔍',
+    title: 'No Text Found',
+    message: 'No readable text was detected in this image.',
+  },
+  LOW_QUALITY: {
+    icon: '📷',
+    title: 'Image Too Blurry',
+    message: 'The image quality is too low. Try a clearer photo.',
+  },
+  default: {
+    icon: '⚠️',
+    title: 'Processing Failed',
+    message: 'Failed to process image. Please try again.',
+  },
+};
 
 /**
  * @param {Object} props
@@ -49,8 +70,6 @@ export function ImageTranslationModal({ visible, imageUrl, onClose, userLanguage
       setTranslation(null);
 
       // Step 1: Extract text from image
-      console.log('🔍 Extracting text from image...');
-      console.log('👤 User preferred language:', userLanguage);
       const ocr = await extractImageText(imageUrl);
       
       if (!ocr.text) {
@@ -65,30 +84,30 @@ export function ImageTranslationModal({ visible, imageUrl, onClose, userLanguage
       // Step 2: Translate if needed
       if (ocr.detectedLanguage !== userLanguage) {
         setTranslating(true);
-        console.log(`🌍 Translating from ${ocr.detectedLanguage} to ${userLanguage}...`);
-        console.log('📝 Translation request:', { text: ocr.text.substring(0, 50), targetLanguage: userLanguage, sourceLanguage: ocr.detectedLanguage });
-        
         const translated = await translateMessage(
           ocr.text,
           userLanguage,
           ocr.detectedLanguage
         );
-        
-        console.log('✅ Translation received:', translated.translatedText.substring(0, 50));
         setTranslation(translated.translatedText);
         setTranslating(false);
-      } else {
-        console.log('ℹ️ No translation needed - text is already in user language');
       }
     } catch (err) {
       console.error('Error processing image:', err);
       
+      // Set error with type information for AIErrorState
       if (err.message === 'NO_TEXT_DETECTED') {
-        setError('NO_TEXT_DETECTED');
+        setError({ type: 'NO_TEXT_DETECTED', message: err.message });
       } else if (err.message?.includes('quality')) {
-        setError('LOW_QUALITY');
+        setError({ type: 'LOW_QUALITY', message: err.message });
+      } else if (err.type === 'RATE_LIMIT') {
+        setError({ type: 'RATE_LIMIT', message: err.message });
+      } else if (err.type === 'NETWORK') {
+        setError({ type: 'NETWORK', message: err.message });
+      } else if (err.type === 'AUTH') {
+        setError({ type: 'AUTH', message: err.message });
       } else {
-        setError('PROCESSING_ERROR');
+        setError({ type: 'PROCESSING_ERROR', message: err.message });
       }
       
       setLoading(false);
@@ -122,47 +141,11 @@ export function ImageTranslationModal({ visible, imageUrl, onClose, userLanguage
   };
 
   const getErrorMessage = () => {
-    switch (error) {
-      case 'NO_TEXT_DETECTED':
-        return {
-          icon: '🔍',
-          title: 'No Text Found',
-          message: 'No readable text was detected in this image.',
-        };
-      case 'LOW_QUALITY':
-        return {
-          icon: '📷',
-          title: 'Image Too Blurry',
-          message: 'The image quality is too low. Try a clearer photo.',
-        };
-      default:
-        return {
-          icon: '⚠️',
-          title: 'Processing Failed',
-          message: 'Failed to process image. Please try again.',
-        };
-    }
+    if (!error) return ERROR_MESSAGES.default;
+    const errorType = error.type || error;
+    return ERROR_MESSAGES[errorType] || ERROR_MESSAGES.default;
   };
 
-  const getLanguageFlag = (langCode) => {
-    const flags = {
-      'en': '🇺🇸', 'es': '🇪🇸', 'fr': '🇫🇷', 'de': '🇩🇪',
-      'it': '🇮🇹', 'pt': '🇵🇹', 'ru': '🇷🇺', 'ja': '🇯🇵',
-      'ko': '🇰🇷', 'zh': '🇨🇳', 'ar': '🇸🇦', 'hi': '🇮🇳',
-      'tr': '🇹🇷', 'nl': '🇳🇱', 'pl': '🇵🇱', 'sv': '🇸🇪',
-    };
-    return flags[langCode] || '🌐';
-  };
-
-  const getLanguageName = (langCode) => {
-    const names = {
-      'en': 'English', 'es': 'Spanish', 'fr': 'French', 'de': 'German',
-      'it': 'Italian', 'pt': 'Portuguese', 'ru': 'Russian', 'ja': 'Japanese',
-      'ko': 'Korean', 'zh': 'Chinese', 'ar': 'Arabic', 'hi': 'Hindi',
-      'tr': 'Turkish', 'nl': 'Dutch', 'pl': 'Polish', 'sv': 'Swedish',
-    };
-    return names[langCode] || langCode.toUpperCase();
-  };
 
   return (
     <Modal
@@ -198,22 +181,17 @@ export function ImageTranslationModal({ visible, imageUrl, onClose, userLanguage
 
           {/* Loading State */}
           {loading && (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#007AFF" />
-              <Text style={styles.loadingText}>Extracting text from image...</Text>
-            </View>
+            <AILoadingState message="Extracting text from image..." />
           )}
 
           {/* Error State */}
           {error && (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorIcon}>{getErrorMessage().icon}</Text>
-              <Text style={styles.errorTitle}>{getErrorMessage().title}</Text>
-              <Text style={styles.errorMessage}>{getErrorMessage().message}</Text>
-              <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
-                <Text style={styles.retryButtonText}>🔄 Retry</Text>
-              </TouchableOpacity>
-            </View>
+            <AIErrorState
+              type={error.type || 'GENERIC'}
+              message={error.message}
+              onRetry={handleRetry}
+              showRetry={error.type !== 'RATE_LIMIT' && error.type !== 'AUTH'}
+            />
           )}
 
           {/* Original Text */}
@@ -243,10 +221,10 @@ export function ImageTranslationModal({ visible, imageUrl, onClose, userLanguage
 
           {/* Translation Loading */}
           {translating && (
-            <View style={styles.translatingContainer}>
-              <ActivityIndicator size="small" color="#007AFF" />
-              <Text style={styles.translatingText}>Translating to {getLanguageName(userLanguage)}...</Text>
-            </View>
+            <AILoadingState 
+              message={`Translating to ${getLanguageName(userLanguage)}...`}
+              size="small"
+            />
           )}
 
           {/* Translation */}
@@ -344,46 +322,6 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 8,
   },
-  loadingContainer: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#666666',
-  },
-  errorContainer: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  errorIcon: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
-  errorTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#333333',
-    marginBottom: 8,
-  },
-  errorMessage: {
-    fontSize: 16,
-    color: '#666666',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  retryButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
   section: {
     marginHorizontal: 16,
     marginTop: 20,
@@ -434,17 +372,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#007AFF',
     fontWeight: '600',
-  },
-  translatingContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  translatingText: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: '#666666',
   },
   sameLanguageContainer: {
     marginHorizontal: 16,
