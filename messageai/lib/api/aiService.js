@@ -12,9 +12,58 @@
  * - getCulturalContext: Get cultural context for any message
  * - adjustFormality: Change message tone/formality
  * - generateSmartReplies: Generate contextual quick replies
+ * - extractImageText: Extract text from images using OCR
  */
 
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import { Platform } from 'react-native';
+
+// Platform-aware storage
+let storage;
+if (Platform.OS === 'web') {
+  // Use localStorage for web
+  storage = {
+    getItem: async (key) => {
+      try {
+        return localStorage.getItem(key);
+      } catch (e) {
+        return null;
+      }
+    },
+    setItem: async (key, value) => {
+      try {
+        localStorage.setItem(key, value);
+      } catch (e) {
+        console.error('localStorage error:', e);
+      }
+    },
+    removeItem: async (key) => {
+      try {
+        localStorage.removeItem(key);
+      } catch (e) {
+        console.error('localStorage error:', e);
+      }
+    },
+    getAllKeys: async () => {
+      try {
+        return Object.keys(localStorage);
+      } catch (e) {
+        return [];
+      }
+    },
+    multiRemove: async (keys) => {
+      try {
+        keys.forEach(key => localStorage.removeItem(key));
+      } catch (e) {
+        console.error('localStorage error:', e);
+      }
+    },
+  };
+} else {
+  // Use AsyncStorage for native platforms
+  const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+  storage = AsyncStorage;
+}
 
 // Initialize Firebase Functions
 let functions = null;
@@ -319,5 +368,76 @@ export const SUPPORTED_LANGUAGES = [
  */
 export const getLanguageInfo = (code) => {
   return SUPPORTED_LANGUAGES.find(lang => lang.code === code) || null;
+};
+
+// =============================================================================
+// IMAGE OCR
+// =============================================================================
+
+const OCR_CACHE_PREFIX = '@ocr_cache_';
+const OCR_CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+
+/**
+ * Extract text from an image using Google Cloud Vision OCR
+ * @param {string} imageUrl - URL of the image to process
+ * @returns {Promise<{text: string, detectedLanguage: string, confidence: number, wordCount: number, cached?: boolean}>}
+ */
+export const extractImageText = async (imageUrl) => {
+  if (!imageUrl || imageUrl.trim().length === 0) {
+    throw new Error('Image URL is required for OCR.');
+  }
+
+  // Check cache first
+  const cacheKey = `${OCR_CACHE_PREFIX}${imageUrl}`;
+  try {
+    const cachedData = await storage.getItem(cacheKey);
+    if (cachedData) {
+      const { result, timestamp } = JSON.parse(cachedData);
+      const now = Date.now();
+      
+      // Check if cache is still valid (24 hours)
+      if (now - timestamp < OCR_CACHE_DURATION) {
+        console.log('📦 OCR cache hit:', imageUrl);
+        return { ...result, cached: true };
+      } else {
+        // Cache expired, remove it
+        await storage.removeItem(cacheKey);
+      }
+    }
+  } catch (error) {
+    console.error('Error checking OCR cache:', error);
+  }
+
+  // Call Cloud Function
+  console.log('🔍 Calling extractImageText for:', imageUrl);
+  const result = await callFunction('extractImageText', { imageUrl });
+
+  // Cache the result
+  try {
+    const cacheData = {
+      result,
+      timestamp: Date.now(),
+    };
+    await storage.setItem(cacheKey, JSON.stringify(cacheData));
+    console.log('💾 OCR result cached');
+  } catch (error) {
+    console.error('Error caching OCR result:', error);
+  }
+
+  return result;
+};
+
+/**
+ * Clear OCR cache (useful for testing or memory management)
+ */
+export const clearOCRCache = async () => {
+  try {
+    const keys = await storage.getAllKeys();
+    const ocrKeys = keys.filter(key => key.startsWith(OCR_CACHE_PREFIX));
+    await storage.multiRemove(ocrKeys);
+    console.log(`🗑️ Cleared ${ocrKeys.length} OCR cache entries`);
+  } catch (error) {
+    console.error('Error clearing OCR cache:', error);
+  }
 };
 

@@ -409,7 +409,10 @@ export default function ChatScreen() {
             onShowMessageInfo={handleShowMessageInfo}
             onTranslate={handleTranslate}
             onShowCulturalContext={handleShowCulturalContext}
+            userLanguage={user?.preferredLanguage || 'en'}
           />
+          {/* Debug: Log user's preferred language */}
+          {console.log('🔤 Chat Screen - User preferred language:', user?.preferredLanguage)}
           
           {/* Typing Indicator */}
           <TypingIndicator

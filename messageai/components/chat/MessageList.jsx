@@ -23,6 +23,7 @@ import { formatTimestamp } from '../../lib/utils/formatters';
  * @param {Function} [props.onShowMessageInfo] - Callback to show message info (read receipts)
  * @param {Function} [props.onTranslate] - Callback to translate message
  * @param {Function} [props.onShowCulturalContext] - Callback to show cultural context
+ * @param {string} [props.userLanguage='en'] - User's preferred language for OCR translation
  */
 export function MessageList({ 
   messages, 
@@ -36,6 +37,7 @@ export function MessageList({
   onShowMessageInfo,
   onTranslate,
   onShowCulturalContext,
+  userLanguage = 'en',
 }) {
   const flatListRef = useRef(null);
   const previousMessageCount = useRef(messages.length);
@@ -276,6 +278,7 @@ export function MessageList({
         visible={imagePreviewVisible}
         imageUrl={selectedImageUrl}
         onClose={handleClosePreview}
+        userLanguage={userLanguage}
       />
     </>
   );
