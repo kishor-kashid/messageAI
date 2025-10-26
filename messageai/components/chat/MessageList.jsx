@@ -23,6 +23,7 @@ import { formatTimestamp } from '../../lib/utils/formatters';
  * @param {Function} [props.onShowMessageInfo] - Callback to show message info (read receipts)
  * @param {Function} [props.onTranslate] - Callback to translate message
  * @param {Function} [props.onShowCulturalContext] - Callback to show cultural context
+ * @param {Function} [props.onSenderPress] - Callback when sender name is pressed (group chats)
  * @param {string} [props.userLanguage='en'] - User's preferred language for OCR translation
  */
 export function MessageList({ 
@@ -37,6 +38,7 @@ export function MessageList({
   onShowMessageInfo,
   onTranslate,
   onShowCulturalContext,
+  onSenderPress,
   userLanguage = 'en',
 }) {
   const flatListRef = useRef(null);
@@ -205,6 +207,7 @@ export function MessageList({
           onShowInfo={onShowMessageInfo}
           onTranslate={onTranslate}
           onShowCulturalContext={onShowCulturalContext}
+          onSenderPress={onSenderPress}
         />
       </View>
     );
