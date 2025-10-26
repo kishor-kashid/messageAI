@@ -5,6 +5,7 @@
  */
 
 import { Tabs } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function TabsLayout() {
   return (
@@ -13,6 +14,10 @@ export default function TabsLayout() {
         headerShown: true,
         tabBarActiveTintColor: '#007AFF',
         tabBarInactiveTintColor: '#999999',
+        tabBarStyle: {
+          paddingBottom: 5,
+          height: 60,
+        },
       }}
     >
       <Tabs.Screen
@@ -20,6 +25,9 @@ export default function TabsLayout() {
         options={{
           title: 'Chats',
           tabBarLabel: 'Chats',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="chatbubbles" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
@@ -27,6 +35,9 @@ export default function TabsLayout() {
         options={{
           title: 'Contacts',
           tabBarLabel: 'Contacts',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="people" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
@@ -34,6 +45,9 @@ export default function TabsLayout() {
         options={{
           title: 'Profile',
           tabBarLabel: 'Profile',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person-circle" size={size} color={color} />
+          ),
         }}
       />
     </Tabs>
