@@ -129,6 +129,7 @@ function calculateGroupStatus(message, conversation, currentUserId) {
  * @param {Function} [props.onShowInfo] - Callback to show message info (read receipts)
  * @param {Function} [props.onTranslate] - Callback to translate message
  * @param {Function} [props.onShowCulturalContext] - Callback to show cultural context
+ * @param {Function} [props.onSenderPress] - Callback when sender name is pressed
  */
 export function MessageBubble({ 
   message, 
@@ -142,6 +143,7 @@ export function MessageBubble({
   onShowInfo,
   onTranslate,
   onShowCulturalContext,
+  onSenderPress,
 }) {
   const { content, imageUrl, timestamp, status: rawStatus = 'sent', detected_language } = message;
   const { userProfile } = useAuth();
@@ -331,7 +333,12 @@ export function MessageBubble({
       <View style={styles.messageWrapper}>
         {/* Show sender name for group chats (only for received messages) */}
         {isGroupChat && !isOwnMessage && senderName && (
-          <Text style={styles.senderName}>{senderName}</Text>
+          <TouchableOpacity 
+            onPress={() => onSenderPress?.(message.senderId)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.senderName}>{senderName}</Text>
+          </TouchableOpacity>
         )}
         
         <BubbleWrapper 

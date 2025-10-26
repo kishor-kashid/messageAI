@@ -37,6 +37,7 @@ import { ReadReceiptsModal } from '../../components/chat/ReadReceiptsModal';
 import TranslationModal from '../../components/chat/TranslationModal';
 import CulturalContextModal from '../../components/chat/CulturalContextModal';
 import SmartReplyChips from '../../components/chat/SmartReplyChips';
+import UserProfileModal from '../../components/profile/UserProfileModal';
 
 export default function ChatScreen() {
   const { id: conversationId } = useLocalSearchParams();
@@ -61,6 +62,10 @@ export default function ChatScreen() {
   const [showSmartReplies, setShowSmartReplies] = useState(false);
   const [lastReceivedMessage, setLastReceivedMessage] = useState(null);
   const [userTyping, setUserTyping] = useState(false);
+  
+  // User Profile Modal states
+  const [showUserProfile, setShowUserProfile] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState(null);
   
   const {
     messages,
@@ -351,6 +356,24 @@ export default function ChatScreen() {
     setSelectedMessageForCulturalContext(null);
   };
 
+  // Handler for header click
+  const handleHeaderPress = () => {
+    if (conversation?.type === 'direct' && otherParticipant) {
+      setSelectedUserId(otherParticipant.id);
+      setShowUserProfile(true);
+    } else if (conversation?.type === 'group') {
+      setShowGroupParticipants(true);
+    }
+  };
+
+  // Handler for message sender name click (group chats)
+  const handleSenderNamePress = (senderId) => {
+    if (senderId !== user.uid) {
+      setSelectedUserId(senderId);
+      setShowUserProfile(true);
+    }
+  };
+
   // Cleanup typing timeout on unmount
   useEffect(() => {
     return () => {
@@ -381,6 +404,7 @@ export default function ChatScreen() {
             <ConversationHeader
               participant={otherParticipant}
               conversation={conversation}
+              onPress={handleHeaderPress}
               onGroupInfoPress={handleShowGroupParticipants}
             />
           ),
@@ -409,6 +433,7 @@ export default function ChatScreen() {
             onShowMessageInfo={handleShowMessageInfo}
             onTranslate={handleTranslate}
             onShowCulturalContext={handleShowCulturalContext}
+            onSenderPress={handleSenderNamePress}
             userLanguage={user?.preferredLanguage || 'en'}
           />
           
@@ -479,6 +504,13 @@ export default function ChatScreen() {
         visible={showCulturalContext}
         onClose={handleCloseCulturalContext}
         message={selectedMessageForCulturalContext}
+      />
+
+      {/* User Profile Modal */}
+      <UserProfileModal
+        visible={showUserProfile}
+        onClose={() => setShowUserProfile(false)}
+        userId={selectedUserId}
       />
     </SafeAreaView>
   );

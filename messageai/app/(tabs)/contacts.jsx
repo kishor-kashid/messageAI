@@ -21,6 +21,7 @@ import { useConversations } from '../../lib/hooks/useConversations';
 import { ContactListItem } from '../../components/contacts/ContactListItem';
 import { AddContactModal } from '../../components/contacts/AddContactModal';
 import { Input } from '../../components/ui/Input';
+import UserProfileModal from '../../components/profile/UserProfileModal';
 
 export default function ContactsScreen() {
   const router = useRouter();
@@ -39,6 +40,10 @@ export default function ContactsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredContacts, setFilteredContacts] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+
+  // User Profile Modal state
+  const [showUserProfile, setShowUserProfile] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState(null);
 
   // Handle search
   const handleSearch = async (query) => {
@@ -90,26 +95,35 @@ export default function ContactsScreen() {
     }
   };
 
-  // Handle long press - option to remove contact
+  // Handle long press - show options menu
   const handleContactLongPress = (contact) => {
-    Alert.alert(
-      'Remove Contact',
-      `Remove ${contact.displayName} from your contacts?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await removeContact(contact.id);
-              Alert.alert('Success', 'Contact removed');
-            } catch (err) {
-              Alert.alert('Error', err.message || 'Failed to remove contact');
-            }
-          },
+    const buttons = [
+      {
+        text: 'View Profile',
+        onPress: () => {
+          setSelectedUserId(contact.id);
+          setShowUserProfile(true);
         },
-      ]
+      },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await removeContact(contact.id);
+            Alert.alert('Success', 'Contact removed');
+          } catch (err) {
+            Alert.alert('Error', err.message || 'Failed to remove contact');
+          }
+        },
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ];
+
+    Alert.alert(
+      contact.displayName,
+      'Choose an action',
+      buttons
     );
   };
 
@@ -202,14 +216,19 @@ export default function ContactsScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* Action Buttons */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Contacts</Text>
         <TouchableOpacity
           style={styles.addButton}
           onPress={() => setShowAddModal(true)}
         >
-          <Text style={styles.addButtonText}>+ Add</Text>
+          <Text style={styles.addButtonText}>➕ Add Contact</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.createGroupButton}
+          onPress={() => router.push('/group/create')}
+        >
+          <Text style={styles.createGroupButtonText}>👥 Create Group</Text>
         </TouchableOpacity>
       </View>
 
@@ -235,6 +254,13 @@ export default function ContactsScreen() {
         onClose={() => setShowAddModal(false)}
         onAddContact={handleAddContact}
       />
+
+      {/* User Profile Modal */}
+      <UserProfileModal
+        visible={showUserProfile}
+        onClose={() => setShowUserProfile(false)}
+        userId={selectedUserId}
+      />
     </View>
   );
 }
@@ -254,19 +280,30 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#E0E0E0',
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#000000',
+    gap: 8,
   },
   addButton: {
+    flex: 1,
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 10,
     backgroundColor: '#007AFF',
-    borderRadius: 20,
+    borderRadius: 12,
+    alignItems: 'center',
   },
   addButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  createGroupButton: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#34C759',
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  createGroupButtonText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#FFFFFF',

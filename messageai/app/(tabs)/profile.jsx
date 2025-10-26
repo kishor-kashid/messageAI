@@ -172,85 +172,154 @@ export default function ProfileScreen() {
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Profile Header */}
       <View style={styles.header}>
         <View style={styles.avatarContainer}>
           <Avatar
             displayName={userProfile.displayName}
             uri={userProfile.photoURL}
-            size={100}
+            size={120}
           />
           {isUploadingPhoto && (
             <View style={styles.uploadingOverlay}>
               <ActivityIndicator size="large" color="#007AFF" />
             </View>
           )}
+          <TouchableOpacity 
+            style={styles.cameraButton}
+            onPress={handleChangePhoto}
+            disabled={imageLoading || isUploadingPhoto}
+          >
+            <Text style={styles.cameraIcon}>📷</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity 
-          style={styles.changePhotoButton}
-          onPress={handleChangePhoto}
-          disabled={imageLoading || isUploadingPhoto}
-        >
-          <Text style={styles.changePhotoText}>
-            {isUploadingPhoto ? 'Uploading...' : '📷 Change Photo'}
-          </Text>
-        </TouchableOpacity>
         <Text style={styles.displayName}>{userProfile.displayName}</Text>
         <Text style={styles.email}>{userProfile.email}</Text>
       </View>
 
-      {/* Profile Information */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Profile Information</Text>
-        
-        <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>Display Name</Text>
-          <Text style={styles.infoValue}>{userProfile.displayName}</Text>
-        </View>
+      {/* Quick Actions */}
+      <View style={styles.quickActionsContainer}>
+        <TouchableOpacity
+          style={styles.quickActionButton}
+          onPress={handleEditPress}
+        >
+          <View style={styles.quickActionIcon}>
+            <Text style={styles.quickActionIconText}>✏️</Text>
+          </View>
+          <Text style={styles.quickActionLabel}>Edit Profile</Text>
+        </TouchableOpacity>
 
-        <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>Email</Text>
-          <Text style={styles.infoValue}>{userProfile.email}</Text>
-        </View>
-
-        <TouchableOpacity 
-          style={styles.infoItem}
+        <TouchableOpacity
+          style={styles.quickActionButton}
           onPress={() => setShowLanguagePicker(true)}
           disabled={isUpdatingLanguage}
         >
-          <Text style={styles.infoLabel}>Preferred Language</Text>
-          <View style={styles.languageValue}>
-            {isUpdatingLanguage ? (
-              <ActivityIndicator size="small" color="#007AFF" />
-            ) : (
-              <>
-                <Text style={styles.infoValue}>
-                  {selectedLanguage ? `${selectedLanguage.flag} ${selectedLanguage.name}` : 'English'}
-                </Text>
-                <Text style={styles.chevron}>›</Text>
-              </>
-            )}
+          <View style={styles.quickActionIcon}>
+            <Text style={styles.quickActionIconText}>🌐</Text>
           </View>
+          <Text style={styles.quickActionLabel}>Language</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.quickActionButton}
+          onPress={handleChangePhoto}
+          disabled={imageLoading || isUploadingPhoto}
+        >
+          <View style={styles.quickActionIcon}>
+            <Text style={styles.quickActionIconText}>🖼️</Text>
+          </View>
+          <Text style={styles.quickActionLabel}>Photo</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Action Buttons */}
-      <View style={styles.section}>
-        <TouchableOpacity
-          style={styles.editButton}
-          onPress={handleEditPress}
-        >
-          <Text style={styles.editButtonText}>✏️ Edit Profile</Text>
-        </TouchableOpacity>
+      {/* Profile Information Card */}
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>👤 Account Information</Text>
+        </View>
+        
+        <View style={styles.infoRow}>
+          <View style={styles.infoIconContainer}>
+            <Text style={styles.infoIcon}>📝</Text>
+          </View>
+          <View style={styles.infoContent}>
+            <Text style={styles.infoLabel}>Display Name</Text>
+            <Text style={styles.infoValue}>{userProfile.displayName}</Text>
+          </View>
+        </View>
 
+        <View style={styles.infoRow}>
+          <View style={styles.infoIconContainer}>
+            <Text style={styles.infoIcon}>📧</Text>
+          </View>
+          <View style={styles.infoContent}>
+            <Text style={styles.infoLabel}>Email Address</Text>
+            <Text style={styles.infoValue}>{userProfile.email}</Text>
+          </View>
+        </View>
+
+        <TouchableOpacity 
+          style={styles.infoRow}
+          onPress={() => setShowLanguagePicker(true)}
+          disabled={isUpdatingLanguage}
+        >
+          <View style={styles.infoIconContainer}>
+            <Text style={styles.infoIcon}>🌍</Text>
+          </View>
+          <View style={styles.infoContent}>
+            <Text style={styles.infoLabel}>Preferred Language</Text>
+            {isUpdatingLanguage ? (
+              <ActivityIndicator size="small" color="#007AFF" />
+            ) : (
+              <Text style={styles.infoValue}>
+                {selectedLanguage ? `${selectedLanguage.flag} ${selectedLanguage.name}` : 'English'}
+              </Text>
+            )}
+          </View>
+          <Text style={styles.chevron}>›</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* App Info Card */}
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>ℹ️ About</Text>
+        </View>
+        
+        <View style={styles.infoRow}>
+          <View style={styles.infoIconContainer}>
+            <Text style={styles.infoIcon}>📱</Text>
+          </View>
+          <View style={styles.infoContent}>
+            <Text style={styles.infoLabel}>App Name</Text>
+            <Text style={styles.infoValue}>MessageAI</Text>
+          </View>
+        </View>
+
+        <View style={styles.infoRow}>
+          <View style={styles.infoIconContainer}>
+            <Text style={styles.infoIcon}>🔖</Text>
+          </View>
+          <View style={styles.infoContent}>
+            <Text style={styles.infoLabel}>Version</Text>
+            <Text style={styles.infoValue}>1.0.0</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Logout Button */}
+      <View style={styles.logoutContainer}>
         <TouchableOpacity
           style={styles.logoutButton}
           onPress={handleLogout}
         >
-          <Text style={styles.logoutButtonText}>🚪 Logout</Text>
+          <Text style={styles.logoutIcon}>🚪</Text>
+          <Text style={styles.logoutButtonText}>Logout</Text>
         </TouchableOpacity>
       </View>
+
+      <View style={styles.bottomSpacer} />
 
       {/* Edit Modal */}
       <Modal
@@ -350,19 +419,17 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F5F7FA',
   },
   header: {
     alignItems: 'center',
     paddingVertical: 40,
     paddingHorizontal: 20,
-    backgroundColor: '#F8F8F8',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    backgroundColor: '#FFFFFF',
   },
   avatarContainer: {
     position: 'relative',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   uploadingOverlay: {
     position: 'absolute',
@@ -370,85 +437,165 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    borderRadius: 50,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 60,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  changePhotoButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    marginBottom: 8,
+  cameraButton: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#007AFF',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
   },
-  changePhotoText: {
-    color: '#007AFF',
-    fontSize: 16,
-    fontWeight: '500',
+  cameraIcon: {
+    fontSize: 20,
   },
   displayName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#000000',
-    marginTop: 16,
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#1C1C1E',
+    marginTop: 12,
   },
   email: {
-    fontSize: 16,
-    color: '#666666',
-    marginTop: 4,
+    fontSize: 15,
+    color: '#8E8E93',
+    marginTop: 6,
   },
-  section: {
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000000',
-    marginBottom: 16,
-  },
-  infoItem: {
+  quickActionsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    backgroundColor: '#FFFFFF',
+    marginTop: 12,
+    marginHorizontal: 16,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  quickActionButton: {
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E0E0E0',
+    flex: 1,
+  },
+  quickActionIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#F0F4FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  quickActionIconText: {
+    fontSize: 24,
+  },
+  quickActionLabel: {
+    fontSize: 13,
+    color: '#1C1C1E',
+    fontWeight: '500',
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    overflow: 'hidden',
+  },
+  cardHeader: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 12,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1C1C1E',
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#F2F2F7',
+  },
+  infoIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#F0F4FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  infoIcon: {
+    fontSize: 18,
+  },
+  infoContent: {
+    flex: 1,
   },
   infoLabel: {
-    fontSize: 16,
-    color: '#666666',
-    flex: 1,
+    fontSize: 13,
+    color: '#8E8E93',
+    marginBottom: 2,
   },
   infoValue: {
     fontSize: 16,
-    color: '#000000',
+    color: '#1C1C1E',
     fontWeight: '500',
-    flex: 1,
-    textAlign: 'right',
   },
-  editButton: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  editButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+  logoutContainer: {
+    paddingHorizontal: 16,
+    marginTop: 24,
+    marginBottom: 16,
   },
   logoutButton: {
-    backgroundColor: '#FF3B30',
-    paddingVertical: 14,
-    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#FF3B30',
+    shadowColor: '#FF3B30',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  logoutIcon: {
+    fontSize: 20,
+    marginRight: 8,
   },
   logoutButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
+    color: '#FF3B30',
+    fontSize: 17,
     fontWeight: '600',
+  },
+  bottomSpacer: {
+    height: 32,
   },
   modalOverlay: {
     flex: 1,
@@ -518,16 +665,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  languageValue: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
   chevron: {
     fontSize: 20,
     color: '#C7C7CC',
     marginLeft: 8,
+    fontWeight: '300',
   },
   languageModalContainer: {
     backgroundColor: '#FFFFFF',
